@@ -1,0 +1,16 @@
+# AI agent tooling (D-010)
+docs/ai-context/
+CLAUDE.md
+AGENTS.md
+CLAUDE.local.md
+.claude/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Local secrets (never commit)
+.env
+.linkedin_token.json
