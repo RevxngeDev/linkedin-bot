@@ -27,8 +27,16 @@ def main() -> None:
     access_token = os.environ.get("LINKEDIN_ACCESS_TOKEN", "").strip()
     author_urn = os.environ.get("LINKEDIN_MEMBER_URN", "").strip()
     api_version = os.environ.get("LINKEDIN_API_VERSION", "").strip() or DEFAULT_API_VERSION
-    if not access_token or not author_urn:
-        sys.exit("Missing LINKEDIN_ACCESS_TOKEN or LINKEDIN_MEMBER_URN.")
+    missing = [
+        name
+        for name, value in (
+            ("LINKEDIN_ACCESS_TOKEN", access_token),
+            ("LINKEDIN_MEMBER_URN", author_urn),
+        )
+        if not value
+    ]
+    if missing:
+        sys.exit(f"Missing required environment variable(s): {', '.join(missing)}")
 
     with httpx.Client(timeout=30) as http:
         client = LinkedInClient(http, access_token, api_version)
