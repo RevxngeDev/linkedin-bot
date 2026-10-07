@@ -14,7 +14,19 @@ DEFAULT_API_VERSION = "202609"
 
 
 class PublishError(RuntimeError):
-    """Raised when LinkedIn does not confirm the post was created."""
+    """Raised when LinkedIn does not confirm the post was created.
+
+    `rejected` is True only for 4xx responses, where LinkedIn definitely did not create
+    the post. Any other failure is ambiguous: the post may exist.
+    """
+
+    def __init__(self, message: str, status_code: int | None = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+
+    @property
+    def rejected(self) -> bool:
+        return self.status_code is not None and 400 <= self.status_code < 500
 
 
 class LinkedInClient:
@@ -42,7 +54,10 @@ class LinkedInClient:
         }
         response = self._http.post(POSTS_URL, json=body, headers=self._headers)
         if response.status_code != 201:
-            raise PublishError(f"Create post failed ({response.status_code}): {response.text}")
+            raise PublishError(
+                f"Create post failed ({response.status_code}): {response.text}",
+                status_code=response.status_code,
+            )
         post_urn = response.headers.get("x-restli-id")
         if not post_urn:
             raise PublishError("LinkedIn returned 201 without an x-restli-id header.")

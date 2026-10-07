@@ -1,0 +1,36 @@
+name: Publish queued post
+
+# A merged PR that adds a file to content/queue/ triggers a run; the daily cron picks up
+# posts held back by the 1/day rule or a future publish_at. Pushes made by this workflow
+# with GITHUB_TOKEN do not trigger new runs.
+on:
+  push:
+    branches: [main]
+    paths: ["content/queue/**"]
+  schedule:
+    - cron: "17 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v10.2.0
+      - name: Publish next approved, due post
+        env:
+          LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
+          LINKEDIN_MEMBER_URN: ${{ secrets.LINKEDIN_MEMBER_URN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: uv run linkedin-bot-publish
