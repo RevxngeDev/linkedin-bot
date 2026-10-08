@@ -1,0 +1,26 @@
+name: Preview a draft
+
+# Manual tool to tune config/voice_profile.md: writes a draft for the given note and
+# prints it in the log. Opens no PR and publishes nothing.
+on:
+  workflow_dispatch:
+    inputs:
+      note:
+        description: "Note text to turn into a draft (Spanish)"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+      - name: Generate draft
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          # Passed through env (never interpolated into the script) to avoid injection.
+          PREVIEW_NOTE: ${{ inputs.note }}
+        run: uv run python -m linkedin_bot.generator.preview
