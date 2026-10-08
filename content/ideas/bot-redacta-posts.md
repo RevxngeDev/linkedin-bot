@@ -1,0 +1,2 @@
+Mi bot de LinkedIn ahora redacta los posts por mí a partir de notas como esta. Dejo una nota en una carpeta del repositorio, un workflow de GitHub Actions la detecta, un modelo de IA escribe el borrador con mi estilo y el bot me abre un Pull Request. Yo lo reviso, lo edito si hace falta y solo se publica si hago merge. Si cierro el PR, esa nota no se vuelve a redactar. Le puse reglas para que no invente datos que no estén en la nota.
+["no quería que se publicara nada sin que yo lo leyera"]
