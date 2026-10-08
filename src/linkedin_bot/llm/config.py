@@ -22,6 +22,7 @@ class LLMConfig:
     model: str
     max_completion_tokens: int
     reasoning_effort: str | None = None
+    temperature: float | None = None
 
 
 def load_llm_config(path: Path = DEFAULT_CONFIG_PATH) -> LLMConfig:
@@ -42,7 +43,20 @@ def load_llm_config(path: Path = DEFAULT_CONFIG_PATH) -> LLMConfig:
     if not isinstance(max_tokens, int) or max_tokens <= 0:
         raise LLMError(f"{path}: 'max_completion_tokens' must be a positive integer")
     effort = raw.get("reasoning_effort")
-    return LLMConfig(provider, model, max_tokens, str(effort) if effort else None)
+    temperature = raw.get("temperature")
+    if temperature is not None and (
+        isinstance(temperature, bool)
+        or not isinstance(temperature, int | float)
+        or not 0 <= temperature <= 2
+    ):
+        raise LLMError(f"{path}: 'temperature' must be a number between 0 and 2")
+    return LLMConfig(
+        provider,
+        model,
+        max_tokens,
+        str(effort) if effort else None,
+        float(temperature) if temperature is not None else None,
+    )
 
 
 def build_llm_client(config: LLMConfig, http: httpx.Client, env: dict[str, str]) -> LLMClient:
@@ -56,4 +70,5 @@ def build_llm_client(config: LLMConfig, http: httpx.Client, env: dict[str, str])
         config.model,
         config.max_completion_tokens,
         config.reasoning_effort,
+        config.temperature,
     )

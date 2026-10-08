@@ -21,12 +21,14 @@ class GroqClient:
         model: str,
         max_completion_tokens: int,
         reasoning_effort: str | None = None,
+        temperature: float | None = None,
     ) -> None:
         self._http = http
         self._headers = {"Authorization": f"Bearer {api_key}"}
         self._model = model
         self._max_completion_tokens = max_completion_tokens
         self._reasoning_effort = reasoning_effort
+        self._temperature = temperature
 
     def generate(self, system: str, prompt: str) -> str:
         body: dict[str, object] = {
@@ -41,6 +43,8 @@ class GroqClient:
         }
         if self._reasoning_effort:
             body["reasoning_effort"] = self._reasoning_effort
+        if self._temperature is not None:
+            body["temperature"] = self._temperature
 
         response = self._http.post(CHAT_COMPLETIONS_URL, json=body, headers=self._headers)
         if response.status_code != 200:

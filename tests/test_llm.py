@@ -51,12 +51,22 @@ def test_generate_sends_expected_request_and_returns_text():
     assert body["reasoning_effort"] == "low"
 
 
-def test_reasoning_effort_omitted_when_not_configured():
+def test_reasoning_effort_and_temperature_omitted_when_not_configured():
     def handler(request):
-        assert "reasoning_effort" not in json.loads(request.content)
+        body = json.loads(request.content)
+        assert "reasoning_effort" not in body and "temperature" not in body
         return ok_response()
 
     groq(handler, effort=None).generate("s", "p")
+
+
+def test_temperature_is_sent_when_configured():
+    def handler(request):
+        assert json.loads(request.content)["temperature"] == 0.5
+        return ok_response()
+
+    http = httpx.Client(transport=httpx.MockTransport(handler))
+    GroqClient(http, "k", "m", 100, None, 0.5).generate("s", "p")
 
 
 def test_rate_limit_error_mentions_retry_after():
@@ -93,6 +103,16 @@ def test_load_config(tmp_path):
 def test_repo_config_file_is_valid():
     config = load_llm_config()
     assert config.provider == "groq" and config.model
+    assert config.temperature is not None and 0 <= config.temperature <= 2
+
+
+def test_load_config_with_temperature(tmp_path):
+    path = tmp_path / "llm.yml"
+    path.write_text(
+        "provider: groq\nmodel: m\nmax_completion_tokens: 10\ntemperature: 0.5\n",
+        encoding="utf-8",
+    )
+    assert load_llm_config(path).temperature == 0.5
 
 
 @pytest.mark.parametrize(
@@ -102,6 +122,8 @@ def test_repo_config_file_is_valid():
         ("provider: groq\nmax_completion_tokens: 1\n", "model"),
         ("provider: groq\nmodel: m\nmax_completion_tokens: 0\n", "max_completion_tokens"),
         ("- not a mapping\n", "mapping"),
+        ("provider: groq\nmodel: m\nmax_completion_tokens: 1\ntemperature: 3\n", "temperature"),
+        ("provider: groq\nmodel: m\nmax_completion_tokens: 1\ntemperature: hot\n", "temperature"),
     ],
 )
 def test_invalid_config_raises(tmp_path, content, message):

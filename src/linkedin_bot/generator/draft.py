@@ -14,10 +14,16 @@ from linkedin_bot.llm.base import LLMClient
 
 WRAPPING_FENCE = re.compile(r"\A```[a-zA-Z]*\n(.*)\n```\Z", re.DOTALL)
 WRAPPING_QUOTES = (('"', '"'), ("“", "”"), ("«", "»"))
+# Markdown emphasis is not rendered by LinkedIn (D-022): keep the words, drop the markers.
+MARKDOWN_EMPHASIS = re.compile(r"(\*\*|__)(.+?)\1")
+# Non-standard hyphens and spaces that models emit (e.g. U+2011 in "gpt-oss").
+CHARACTER_FIXES = str.maketrans(
+    {"‐": "-", "‑": "-", " ": " ", " ": " "}
+)
 
 
 def clean_draft(text: str) -> str:
-    """Remove wrappers a model sometimes adds around the post despite the rules."""
+    """Remove wrappers and formatting a model sometimes adds despite the rules."""
     text = text.strip()
     fence = WRAPPING_FENCE.match(text)
     if fence:
@@ -26,7 +32,8 @@ def clean_draft(text: str) -> str:
         inner = text[len(opening) : -len(closing)]
         if text.startswith(opening) and text.endswith(closing) and opening not in inner:
             text = inner.strip()
-    return text
+    text = MARKDOWN_EMPHASIS.sub(r"\2", text).translate(CHARACTER_FIXES)
+    return "\n".join(line.rstrip() for line in text.splitlines())
 
 
 def write_note_draft(llm: LLMClient, profile: VoiceProfile, note: str) -> str:

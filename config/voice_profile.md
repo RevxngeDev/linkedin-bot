@@ -14,8 +14,9 @@ este archivo.
 - Español neutro, entendible en España y Latinoamérica. Tratar a la audiencia de "ustedes".
 
 ### Estructura
-- Gancho en las 1-2 primeras líneas: una escena, un contraste o un dato concreto que esté
-  en la nota. Nunca empezar con un saludo ni con "Hoy quiero compartir".
+- Gancho en las 1-2 primeras líneas, construido con un hecho, un problema o un contraste
+  que esté en la nota. No inventar escenas ni circunstancias para el gancho. Nunca empezar
+  con un saludo ni con "Hoy quiero compartir".
 - Párrafos cortos (1-3 líneas) separados por una línea en blanco.
 - Usar listas solo cuando ordenan pasos o puntos reales, con "-" o con un emoji como
   marcador.

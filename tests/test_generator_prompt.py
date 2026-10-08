@@ -96,10 +96,21 @@ def test_empty_note_is_rejected():
         ("“Post entre comillas tipográficas.”", "Post entre comillas tipográficas."),
         ("```\nPost en bloque.\n```", "Post en bloque."),
         ('"Una cita" y luego "otra"', '"Una cita" y luego "otra"'),
+        # Real defects seen in the first preview (2026-10-08):
+        ("el modelo **gpt-oss-120b** de Groq", "el modelo gpt-oss-120b de Groq"),
+        ("mi linkedin‑bot y gpt‑oss", "mi linkedin-bot y gpt-oss"),
+        ("Línea con espacios.   \n\nOtra.  ", "Línea con espacios.\n\nOtra."),
+        ("__subrayado__ y 2 * 3 * 4", "subrayado y 2 * 3 * 4"),
+        ("con espacio duro", "con espacio duro"),
     ],
 )
 def test_clean_draft(raw, expected):
     assert clean_draft(raw) == expected
+
+
+def test_core_rules_forbid_invented_scenes_and_comparisons():
+    for phrase in ("escenas", "momentos del día", "latencia", "funciona sin problemas"):
+        assert phrase in CORE_RULES
 
 
 class FakeLLM:
