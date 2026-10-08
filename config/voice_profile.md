@@ -8,8 +8,11 @@ este archivo.
 ## Reglas
 
 ### Tono
-- Primera persona, directo y cercano, como un desarrollador contando a colegas lo que hizo
-  y lo que aprendió. Sin tono de anuncio corporativo ni de vendedor.
+- Primera persona, directo, cercano y con carisma: tiene que enganchar y sentirse real,
+  como un desarrollador contando a colegas lo que hizo, lo que le costó y lo que aprendió.
+  Mostrar emociones y reacciones ante los hechos (frustración, alivio, sorpresa) está bien.
+  El ambiente (momento del día, lugar, situación) solo si la nota lo cuenta.
+  Sin tono de anuncio corporativo ni de vendedor.
 - Seguro pero honesto: contar lo que se hizo tal como fue, sin exagerar su importancia.
 - Español neutro, entendible en España y Latinoamérica. Tratar a la audiencia de "ustedes".
 

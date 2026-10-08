@@ -108,9 +108,10 @@ def test_clean_draft(raw, expected):
     assert clean_draft(raw) == expected
 
 
-def test_core_rules_forbid_invented_scenes_and_comparisons():
-    for phrase in ("escenas", "momentos del día", "latencia", "funciona sin problemas"):
-        assert phrase in CORE_RULES
+def test_core_rules_forbid_invented_technical_claims_but_allow_charisma():
+    for phrase in ("latencia", "funciona sin problemas", "No inventes cifras"):
+        assert phrase in " ".join(CORE_RULES.split())
+    assert "carisma" in CORE_RULES and "emociones" in CORE_RULES
 
 
 class FakeLLM:
