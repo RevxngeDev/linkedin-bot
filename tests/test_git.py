@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from linkedin_bot.publisher.git_ops import Git, GitError
+from linkedin_bot.repo.git import Git, GitError
 
 
 def sh(cwd: Path, *args: str) -> str:
@@ -97,3 +97,33 @@ def test_git_failure_raises(repos):
     _, work, _ = repos
     with pytest.raises(GitError, match="commit"):
         make_git(work).commit_and_push([Path("README.md")], "nothing changed")
+
+
+def test_push_new_branch_creates_remote_branch_and_leaves_main_clean(repos):
+    origin, work, _ = repos
+    git = make_git(work)
+    assert git.remote_branch_exists("post/idea-x") is False
+
+    git.push_new_branch(
+        "post/idea-x", {Path("content/queue/2026-10-08-x.md"): "post\n"}, "Draft x"
+    )
+
+    assert git.remote_branch_exists("post/idea-x") is True
+    files = sh(origin, "ls-tree", "-r", "--name-only", "post/idea-x")
+    assert "content/queue/2026-10-08-x.md" in files
+    assert "content/queue/2026-10-08-x.md" not in sh(origin, "ls-tree", "-r", "--name-only", "main")
+    assert sh(work, "branch", "--show-current") == "main"
+    assert not (work / "content" / "queue" / "2026-10-08-x.md").exists()
+    assert sh(origin, "log", "-1", "--format=%an %s", "post/idea-x") == "bot Draft x"
+
+
+def test_push_new_branch_starts_from_latest_remote_main(repos):
+    origin, work, other = repos
+    (other / "newer.txt").write_text("newer\n")
+    sh(other, "add", ".")
+    sh(other, "commit", "-m", "newer")
+    sh(other, "push", "origin", "main")
+
+    make_git(work).push_new_branch("post/idea-y", {Path("y.md"): "y\n"}, "Draft y")
+    files = sh(origin, "ls-tree", "-r", "--name-only", "post/idea-y")
+    assert "newer.txt" in files and "y.md" in files

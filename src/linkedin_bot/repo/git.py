@@ -1,4 +1,7 @@
-"""Thin wrapper over the `git` CLI for the publish workflow (runs in GitHub Actions)."""
+"""Thin wrapper over the `git` CLI, shared by the publisher and the generator.
+
+Runs inside GitHub Actions, where actions/checkout leaves push credentials configured.
+"""
 
 from __future__ import annotations
 
@@ -36,6 +39,28 @@ class Git:
                 if attempt == PUSH_ATTEMPTS:
                     raise
                 self._run(*self._identity, "pull", "--rebase", "origin", self._branch)
+
+    def remote_branch_exists(self, branch: str) -> bool:
+        return bool(self._run("ls-remote", "--heads", "origin", branch).strip())
+
+    def push_new_branch(self, branch: str, files: dict[Path, str], message: str) -> None:
+        """Create `branch` from the remote base branch with `files`, commit and push it.
+
+        The working tree returns to the base branch afterwards, so the files never land on
+        it locally.
+        """
+        self._run("fetch", "origin", self._branch)
+        self._run("switch", "--force-create", branch, f"origin/{self._branch}")
+        try:
+            for path, content in files.items():
+                target = self._repo_dir / path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(content, encoding="utf-8", newline="\n")
+            self._run("add", "--", *(str(p) for p in files))
+            self._run(*self._identity, "commit", "--message", message)
+            self._run("push", "origin", f"{branch}:{branch}")
+        finally:
+            self._run("switch", "--force", self._branch)
 
     def _run(self, *args: str) -> str:
         result = subprocess.run(

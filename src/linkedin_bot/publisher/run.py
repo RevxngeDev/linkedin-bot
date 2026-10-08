@@ -19,8 +19,8 @@ from typing import Protocol
 
 import httpx
 
-from linkedin_bot.publisher.approval import GitHubClient
-from linkedin_bot.publisher.git_ops import Git
+from linkedin_bot.repo.github import GitHubClient
+from linkedin_bot.repo.git import Git
 from linkedin_bot.publisher.linkedin_client import (
     DEFAULT_API_VERSION,
     LinkedInClient,

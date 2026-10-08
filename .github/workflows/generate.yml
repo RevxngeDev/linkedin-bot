@@ -1,0 +1,34 @@
+name: Draft posts from notes
+
+# A new note pushed to content/ideas/ triggers a run; the daily cron retries notes that
+# failed or were held back by the per-run limit. Each draft becomes its own PR (D-023);
+# nothing is published here. Requires repo setting "Allow GitHub Actions to create and
+# approve pull requests".
+on:
+  push:
+    branches: [main]
+    paths: ["content/ideas/**"]
+  schedule:
+    - cron: "41 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: generate
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+      - name: Draft new notes and open PRs
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: uv run linkedin-bot-generate
