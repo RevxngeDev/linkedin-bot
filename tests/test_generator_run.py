@@ -50,7 +50,7 @@ class FakeLLM:
         self.prompts.append(prompt)
         if self.fail_on and self.fail_on in prompt:
             raise LLMError("rate limited")
-        return f"Borrador sobre: {prompt.split('<nota>')[1].split('</nota>')[0].strip()}"
+        return f"Borrador sobre: {prompt.split('<material>')[1].split('</material>')[0].strip()}"
 
 
 @pytest.fixture

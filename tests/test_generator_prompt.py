@@ -80,7 +80,7 @@ def test_core_rules_cannot_be_removed_by_the_profile():
 
 def test_note_prompt_wraps_note():
     prompt = build_note_prompt("  Terminé la fase 1.  ")
-    assert "<nota>\nTerminé la fase 1.\n</nota>" in prompt
+    assert "<material>\nTerminé la fase 1.\n</material>" in prompt
 
 
 def test_empty_note_is_rejected():

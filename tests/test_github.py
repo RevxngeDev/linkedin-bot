@@ -86,3 +86,44 @@ def test_create_pull_request_error_raises():
     client = _client(lambda r: httpx.Response(403, text="Actions may not create PRs"))
     with pytest.raises(GitHubError, match="403"):
         client.create_pull_request("h", "main", "T", "B")
+
+
+def test_list_pull_requests_paginates():
+    pages = {"1": [{"number": n} for n in range(100)], "2": [{"number": 100}]}
+
+    def handler(request):
+        params = dict(request.url.params)
+        assert params["state"] == "all" and params["per_page"] == "100"
+        return httpx.Response(200, json=pages[params["page"]])
+
+    assert len(_client(handler).list_pull_requests()) == 101
+
+
+def test_get_readme_raw_and_missing():
+    def handler(request):
+        assert request.headers["Accept"] == "application/vnd.github.raw+json"
+        if "missing" in request.url.path:
+            return httpx.Response(404, json={"message": "Not Found"})
+        return httpx.Response(200, text="# README")
+
+    client = _client(handler)
+    assert client.get_readme("o/has") == "# README"
+    assert client.get_readme("o/missing") is None
+
+
+def test_repo_data_endpoints():
+    seen = []
+
+    def handler(request):
+        seen.append(request.url.path)
+        if request.url.path.endswith("/commits/main"):
+            return httpx.Response(200, json={"sha": "abc"})
+        return httpx.Response(200, json={"ok": True})
+
+    client = _client(handler)
+    assert client.head_sha("o/x", "main") == "abc"
+    client.get_repository("o/x")
+    client.get_languages("o/x")
+    client.compare("o/x", "b1", "h2")
+    assert seen == ["/repos/o/x/commits/main", "/repos/o/x", "/repos/o/x/languages",
+                    "/repos/o/x/compare/b1...h2"]

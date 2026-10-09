@@ -55,7 +55,48 @@ class GitHubClient:
             )
         return response.json()
 
-    def _get(self, path: str, params: dict[str, str] | None = None) -> list[dict]:
+    def list_pull_requests(self, max_pages: int = 10) -> list[dict]:
+        """All PRs of this repository in any state, newest first (paginated)."""
+        pulls: list[dict] = []
+        for page in range(1, max_pages + 1):
+            batch = self._get(
+                f"/repos/{self._repository}/pulls",
+                params={"state": "all", "per_page": "100", "page": str(page)},
+            )
+            pulls.extend(batch)
+            if len(batch) < 100:
+                break
+        return pulls
+
+    # --- Read-only data about watched repos (Phase 3, D-029) ---
+
+    def get_repository(self, repo: str) -> dict:
+        return self._get(f"/repos/{repo}")
+
+    def get_languages(self, repo: str) -> dict[str, int]:
+        return self._get(f"/repos/{repo}/languages")
+
+    def head_sha(self, repo: str, branch: str) -> str:
+        return self._get(f"/repos/{repo}/commits/{branch}")["sha"]
+
+    def compare(self, repo: str, base: str, head: str) -> dict:
+        return self._get(f"/repos/{repo}/compare/{base}...{head}")
+
+    def get_readme(self, repo: str) -> str | None:
+        """README text of `repo`'s default branch, or None if it has no README."""
+        response = self._http.get(
+            f"{GITHUB_API_URL}/repos/{repo}/readme",
+            headers={**self._headers, "Accept": "application/vnd.github.raw+json"},
+        )
+        if response.status_code == 404:
+            return None
+        if response.status_code != 200:
+            raise GitHubError(
+                f"GitHub GET README of {repo} failed ({response.status_code}): {response.text}"
+            )
+        return response.text
+
+    def _get(self, path: str, params: dict[str, str] | None = None):
         response = self._http.get(f"{GITHUB_API_URL}{path}", params=params, headers=self._headers)
         if response.status_code != 200:
             raise GitHubError(f"GitHub GET {path} failed ({response.status_code}): {response.text}")

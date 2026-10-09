@@ -7,6 +7,7 @@ For each note `content/ideas/<slug>.md`:
   - if the branch exists without a PR (an earlier run stopped half-way) → only open the PR;
   - otherwise draft with the LLM, push the branch with content/queue/<id>.md, open the PR.
 The owner reviews and merges (approve) or closes (reject); publishing is Phase 1's job.
+`main()` then runs the project drafts of Phase 3 (`generator/projects.py`).
 """
 
 from __future__ import annotations
@@ -25,8 +26,10 @@ from linkedin_bot.generator.draft import write_note_draft
 from linkedin_bot.generator.prompt import GeneratorError, VoiceProfile, load_voice_profile
 from linkedin_bot.llm.base import LLMClient, LLMError
 from linkedin_bot.llm.config import build_llm_client, load_llm_config
+from linkedin_bot.generator.projects import run_projects
 from linkedin_bot.repo.git import Git
 from linkedin_bot.repo.github import GitHubClient
+from linkedin_bot.sources.projects import SourceError, load_watch_config
 from linkedin_bot.store.posts import ID_PATTERN, QUEUED, Post, PostStore, render_post
 
 BASE_BRANCH = "main"
@@ -168,18 +171,17 @@ def main() -> None:
     try:
         profile = load_voice_profile()
         config = load_llm_config()
+        watch = load_watch_config()
+        store = PostStore(CONTENT_DIR)
+        git = Git(Path("."), BASE_BRANCH, BOT_NAME, BOT_EMAIL)
         with httpx.Client(timeout=120) as http:
-            exit_code = run_generator(
-                ideas_dir=IDEAS_DIR,
-                store=PostStore(CONTENT_DIR),
-                git=Git(Path("."), BASE_BRANCH, BOT_NAME, BOT_EMAIL),
-                github=GitHubClient(http, repository, os.environ.get("GITHUB_TOKEN")),
-                llm=build_llm_client(config, http, dict(os.environ)),
-                profile=profile,
-            )
-    except (GeneratorError, LLMError) as exc:
+            github = GitHubClient(http, repository, os.environ.get("GITHUB_TOKEN"))
+            llm = build_llm_client(config, http, dict(os.environ))
+            notes_code = run_generator(IDEAS_DIR, store, git, github, llm, profile)
+            projects_code = run_projects(watch, store, git, github, llm, profile)
+    except (GeneratorError, LLMError, SourceError) as exc:
         sys.exit(f"Generator FAILED: {exc}")
-    sys.exit(exit_code)
+    sys.exit(notes_code or projects_code)
 
 
 if __name__ == "__main__":

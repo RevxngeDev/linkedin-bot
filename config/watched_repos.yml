@@ -1,0 +1,8 @@
+# Public repos the generator watches for project posts (D-018, D-029).
+# First run per repo: an introduction draft. Afterwards: at most one update draft per
+# repo every `update_interval_days`, only if it has new commits. Every draft is a PR.
+update_interval_days: 7
+repos:
+  - RevxngeDev/trade-sentinel
+  - RevxngeDev/AgroChat
+  - RevxngeDev/Kakao

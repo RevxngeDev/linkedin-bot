@@ -69,10 +69,23 @@ def test_temperature_is_sent_when_configured():
     GroqClient(http, "k", "m", 100, None, 0.5).generate("s", "p")
 
 
-def test_rate_limit_error_mentions_retry_after():
-    client = groq(lambda r: httpx.Response(429, headers={"retry-after": "7"}, text="slow"))
-    with pytest.raises(LLMError, match="retry-after=7"):
+def test_rate_limit_waits_and_retries_then_succeeds():
+    responses = iter([httpx.Response(429, headers={"retry-after": "7"}), ok_response("Ok.")])
+    slept = []
+    http = httpx.Client(transport=httpx.MockTransport(lambda r: next(responses)))
+    client = GroqClient(http, "k", "m", 100, sleep=slept.append)
+    assert client.generate("s", "p") == "Ok."
+    assert slept == [7.0]
+
+
+def test_rate_limit_gives_up_after_retries_and_caps_wait():
+    slept = []
+    http = httpx.Client(transport=httpx.MockTransport(
+        lambda r: httpx.Response(429, headers={"retry-after": "500"}, text="slow")))
+    client = GroqClient(http, "k", "m", 100, sleep=slept.append)
+    with pytest.raises(LLMError, match="retry-after=500"):
         client.generate("s", "p")
+    assert slept == [90.0, 90.0, 90.0]
 
 
 def test_http_error_raises():

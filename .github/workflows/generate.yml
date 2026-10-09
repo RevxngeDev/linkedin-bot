@@ -1,13 +1,13 @@
-name: Draft posts from notes
+name: Draft posts from notes and projects
 
-# A new note pushed to content/ideas/ triggers a run; the daily cron retries notes that
-# failed or were held back by the per-run limit. Each draft becomes its own PR (D-023);
-# nothing is published here. Requires repo setting "Allow GitHub Actions to create and
-# approve pull requests".
+# A new note in content/ideas/ or a change to the watched repos triggers a run; the daily
+# cron retries failures and checks watched repos for new activity (weekly per repo,
+# D-029). Each draft becomes its own PR (D-023); nothing is published here.
+# Requires repo setting "Allow GitHub Actions to create and approve pull requests".
 on:
   push:
     branches: [main]
-    paths: ["content/ideas/**"]
+    paths: ["content/ideas/**", "config/watched_repos.yml"]
   schedule:
     - cron: "41 7 * * *"
   workflow_dispatch:
@@ -27,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v10.2.0
-      - name: Draft new notes and open PRs
+      - name: Draft new notes and project activity, open PRs
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
