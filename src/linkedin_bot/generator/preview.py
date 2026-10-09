@@ -34,8 +34,7 @@ def main() -> None:
     print("----- DRAFT -----")
     print(draft)
     print("-----------------")
-    print("
------ AUTOMATIC FACT CHECK -----")
+    print("\n----- AUTOMATIC FACT CHECK -----")
     print(report)
 
 
