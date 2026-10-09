@@ -23,6 +23,8 @@ class LLMConfig:
     max_completion_tokens: int
     reasoning_effort: str | None = None
     temperature: float | None = None
+    # Used for project posts and fact checks, whose long material needs more care.
+    careful_reasoning_effort: str | None = None
 
 
 def load_llm_config(path: Path = DEFAULT_CONFIG_PATH) -> LLMConfig:
@@ -43,6 +45,7 @@ def load_llm_config(path: Path = DEFAULT_CONFIG_PATH) -> LLMConfig:
     if not isinstance(max_tokens, int) or max_tokens <= 0:
         raise LLMError(f"{path}: 'max_completion_tokens' must be a positive integer")
     effort = raw.get("reasoning_effort")
+    careful_effort = raw.get("careful_reasoning_effort")
     temperature = raw.get("temperature")
     if temperature is not None and (
         isinstance(temperature, bool)
@@ -56,19 +59,24 @@ def load_llm_config(path: Path = DEFAULT_CONFIG_PATH) -> LLMConfig:
         max_tokens,
         str(effort) if effort else None,
         float(temperature) if temperature is not None else None,
+        str(careful_effort) if careful_effort else None,
     )
 
 
-def build_llm_client(config: LLMConfig, http: httpx.Client, env: dict[str, str]) -> LLMClient:
+def build_llm_client(
+    config: LLMConfig, http: httpx.Client, env: dict[str, str], careful: bool = False
+) -> LLMClient:
+    """`careful=True` uses `careful_reasoning_effort` (falls back to `reasoning_effort`)."""
     key_name = API_KEY_ENV[config.provider]
     api_key = env.get(key_name, "").strip()
     if not api_key:
         raise LLMError(f"Missing environment variable {key_name}")
+    effort = (config.careful_reasoning_effort if careful else None) or config.reasoning_effort
     return GroqClient(
         http,
         api_key,
         config.model,
         config.max_completion_tokens,
-        config.reasoning_effort,
+        effort,
         config.temperature,
     )

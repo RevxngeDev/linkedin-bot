@@ -66,12 +66,13 @@ def write_idea(ideas: Path, slug: str, text: str) -> Path:
     return path
 
 
-def run(workspace, git=None, github=None, llm=None, max_drafts=3):
+def run(workspace, git=None, github=None, llm=None, max_drafts=3, checker=None):
     ideas, store = workspace
     git, github, llm = git or FakeGit(), github or FakeGitHub(), llm or FakeLLM()
     logs: list[str] = []
     code = run_generator(ideas, store, git, github, llm, PROFILE,
-                         clock=lambda: NOW, log=logs.append, max_drafts=max_drafts)
+                         clock=lambda: NOW, log=logs.append, max_drafts=max_drafts,
+                         checker=checker)
     return code, git, github, llm, logs
 
 
@@ -167,3 +168,23 @@ def test_find_ideas_skips_bad_names_and_empty_notes(tmp_path):
 
 def test_missing_ideas_dir_means_nothing_to_do(tmp_path):
     assert find_ideas(tmp_path / "nope") == []
+
+
+def test_note_fact_check_goes_into_pr_body(workspace):
+    ideas, _ = workspace
+    write_idea(ideas, "n", "Nota real.")
+
+    class Checker:
+        def generate(self, system, prompt):
+            assert "<material>\nNota real.\n</material>" in prompt
+            return "- «descubrí» → el autor lo construyó"
+
+    _, _, github, _, _ = run(workspace, checker=Checker())
+    assert "el autor lo construyó" in github.created[0]["body"]
+
+
+def test_without_checker_pr_says_check_not_available(workspace):
+    ideas, _ = workspace
+    write_idea(ideas, "n", "Nota.")
+    _, _, github, _, _ = run(workspace)
+    assert "Not available" in github.created[0]["body"]

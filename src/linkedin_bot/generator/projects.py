@@ -20,7 +20,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Protocol
 
-from linkedin_bot.generator.draft import write_draft
+from linkedin_bot.generator.draft import check_draft, write_draft
 from linkedin_bot.generator.prompt import (
     GeneratorError,
     VoiceProfile,
@@ -128,9 +128,18 @@ def plan_repo(
     return Plan(UPDATE, f"new commits since {latest.sha[:7]}", base_sha=latest.sha)
 
 
-def pull_request_body(snapshot: ProjectSnapshot, kind: str, post_id: str, details: str) -> str:
+NO_CHECK = "Not available: the draft was written in an earlier run."
+
+
+def pull_request_body(
+    snapshot: ProjectSnapshot, kind: str, post_id: str, details: str, fact_check: str = NO_CHECK
+) -> str:
     title = "Introduction" if kind == INTRO else "Update"
     return f"""{title} draft generated from the public repo [{snapshot.repo}]({snapshot.url}).
+
+**Automatic fact check** (second AI pass; it flags, it does not edit)
+
+{fact_check}
 
 **Review checklist**
 - [ ] Every fact in the draft comes from the repo data below (nothing invented).
@@ -160,6 +169,7 @@ def run_projects(
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     log: Callable[[str], None] = print,
     max_drafts: int = MAX_PROJECT_DRAFTS_PER_RUN,
+    checker: LLMClient | None = None,
 ) -> int:
     """Return a process exit code: 0 = all good, 1 = at least one repo failed."""
     posts = store.list_queue() + store.list_published()
@@ -187,6 +197,7 @@ def run_projects(
         branch = branch_name(repo, plan.action, snapshot.head_sha)
         post_id = f"{clock():%Y-%m-%d}-{repo_slug(repo)}-{plan.action}"
         details = f"Commit covered: `{snapshot.head_sha}`"
+        fact_check = NO_CHECK
         if not git.remote_branch_exists(branch):
             try:
                 if plan.action == INTRO:
@@ -205,6 +216,8 @@ def run_projects(
                 log(f"{repo}: draft FAILED: {exc}")
                 failures += 1
                 continue
+            if checker is not None:
+                fact_check = check_draft(checker, prompt, body)
             post = Post(
                 id=post_id,
                 source=SOURCES[plan.action],
@@ -225,7 +238,7 @@ def run_projects(
             head=branch,
             base=BASE_BRANCH,
             title=f"Post draft: {repo_slug(repo)} {plan.action}",
-            body=pull_request_body(snapshot, plan.action, post_id, details),
+            body=pull_request_body(snapshot, plan.action, post_id, details, fact_check),
         )
         log(f"{repo}: {plan.reason} → opened PR #{pull['number']} {pull.get('html_url', '')}")
         opened += 1

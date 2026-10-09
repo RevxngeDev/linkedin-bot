@@ -127,3 +127,15 @@ def test_repo_data_endpoints():
     client.compare("o/x", "b1", "h2")
     assert seen == ["/repos/o/x/commits/main", "/repos/o/x", "/repos/o/x/languages",
                     "/repos/o/x/compare/b1...h2"]
+
+
+def test_get_file_raw_and_missing():
+    def handler(request):
+        assert request.headers["Accept"] == "application/vnd.github.raw+json"
+        if request.url.path == "/repos/o/x/contents/README.es.md":
+            return httpx.Response(200, text="# Hola")
+        return httpx.Response(404, json={"message": "Not Found"})
+
+    client = _client(handler)
+    assert client.get_file("o/x", "README.es.md") == "# Hola"
+    assert client.get_file("o/x", "nope.md") is None

@@ -152,3 +152,28 @@ def test_build_client_requires_api_key():
         with pytest.raises(LLMError, match="GROQ_API_KEY"):
             build_llm_client(config, http, {})
         assert isinstance(build_llm_client(config, http, {"GROQ_API_KEY": "k"}), GroqClient)
+
+
+def test_careful_client_uses_careful_reasoning_effort(tmp_path):
+    path = tmp_path / "llm.yml"
+    path.write_text(
+        "provider: groq\nmodel: m\nmax_completion_tokens: 10\n"
+        "reasoning_effort: low\ncareful_reasoning_effort: medium\n",
+        encoding="utf-8",
+    )
+    config = load_llm_config(path)
+    sent = []
+
+    def handler(request):
+        sent.append(json.loads(request.content)["reasoning_effort"])
+        return ok_response()
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as http:
+        env = {"GROQ_API_KEY": "k"}
+        build_llm_client(config, http, env).generate("s", "p")
+        build_llm_client(config, http, env, careful=True).generate("s", "p")
+    assert sent == ["low", "medium"]
+
+
+def test_repo_config_has_careful_effort():
+    assert load_llm_config().careful_reasoning_effort == "medium"

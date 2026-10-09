@@ -8,5 +8,7 @@ max_completion_tokens: 4096
 # gpt-oss models accept low | medium | high (Groq default: medium). Writing a post
 # needs little reasoning; "low" leaves more of the budget for the text itself.
 reasoning_effort: low
+# Project posts and fact checks read long material (README, commits): reason more.
+careful_reasoning_effort: medium
 # 0-2 (Groq default 1). Lower = sticks closer to the note, invents less.
 temperature: 0.5

@@ -19,6 +19,8 @@ REPO_PATTERN = re.compile(r"^[A-Za-z0-9-]+/[A-Za-z0-9._-]+$")
 MAX_README_CHARS = 6000
 MAX_COMMITS = 40
 MAX_FILES = 60
+# Posts are written in Spanish (D-009): prefer a Spanish README when the repo has one.
+SPANISH_README_PATHS = ("README.es.md", "README_es.md", "README.es-ES.md")
 
 
 class SourceError(ValueError):
@@ -55,6 +57,7 @@ class RepoReader(Protocol):
     def get_languages(self, repo: str) -> dict[str, int]: ...
     def head_sha(self, repo: str, branch: str) -> str: ...
     def get_readme(self, repo: str) -> str | None: ...
+    def get_file(self, repo: str, path: str) -> str | None: ...
     def compare(self, repo: str, base: str, head: str) -> dict: ...
 
 
@@ -82,15 +85,31 @@ def truncate(text: str, limit: int) -> str:
     return text[:limit].rsplit("\n", 1)[0] + "\n[... README truncado ...]"
 
 
+def language_shares(byte_counts: dict[str, int]) -> list[str]:
+    """{'Python': 900, 'HTML': 100} -> ['Python 90%', 'HTML 10%'] (largest first)."""
+    total = sum(byte_counts.values())
+    if not total:
+        return []
+    ranked = sorted(byte_counts.items(), key=lambda item: -item[1])
+    return [f"{name} {max(1, round(100 * count / total))}%" for name, count in ranked]
+
+
+def read_readme(reader: RepoReader, repo: str) -> str:
+    for path in SPANISH_README_PATHS:
+        text = reader.get_file(repo, path)
+        if text and text.strip():
+            return text
+    return reader.get_readme(repo) or ""
+
+
 def take_snapshot(reader: RepoReader, repo: str) -> ProjectSnapshot:
     info = reader.get_repository(repo)
-    languages = sorted(reader.get_languages(repo).items(), key=lambda item: -item[1])
     return ProjectSnapshot(
         repo=repo,
         url=info["html_url"],
         description=(info.get("description") or "").strip(),
-        languages=[name for name, _ in languages],
-        readme=truncate(reader.get_readme(repo) or "", MAX_README_CHARS),
+        languages=language_shares(reader.get_languages(repo)),
+        readme=truncate(read_readme(reader, repo), MAX_README_CHARS),
         head_sha=reader.head_sha(repo, info["default_branch"]),
     )
 

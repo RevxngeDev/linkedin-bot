@@ -148,3 +148,35 @@ def test_write_note_draft_uses_profile_and_note():
 def test_write_note_draft_rejects_empty_model_output():
     with pytest.raises(GeneratorError, match="empty draft"):
         write_note_draft(FakeLLM('""'), parse_voice_profile(PROFILE_TEXT), "Mi nota")
+
+
+def test_core_rules_keep_numbers_in_context():
+    assert "conserva su contexto exacto" in " ".join(CORE_RULES.split())
+
+
+def test_project_prompt_labels_languages_as_code_share_only():
+    from linkedin_bot.generator.prompt import build_project_intro_prompt
+    from linkedin_bot.sources.projects import ProjectSnapshot
+
+    snap = ProjectSnapshot(repo="o/r", url="u", description="", languages=["Python 90%"],
+                           readme="R", head_sha="a" * 40)
+    prompt = " ".join(build_project_intro_prompt(snap).split())
+    assert "NO describen funcionalidades" in prompt and "Python 90%" in prompt
+
+
+def test_check_draft_handles_reports_and_errors():
+    from linkedin_bot.generator.draft import check_draft
+    from linkedin_bot.llm.base import LLMError
+
+    class Reply:
+        def __init__(self, value):
+            self.value = value
+
+        def generate(self, system, prompt):
+            if isinstance(self.value, Exception):
+                raise self.value
+            return self.value
+
+    assert "No problems" in check_draft(Reply("SIN PROBLEMAS."), "p", "d")
+    assert check_draft(Reply("- «a» → b"), "p", "d") == "- «a» → b"
+    assert "could not run" in check_draft(Reply(LLMError("boom")), "p", "d")

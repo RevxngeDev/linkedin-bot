@@ -96,6 +96,20 @@ class GitHubClient:
             )
         return response.text
 
+    def get_file(self, repo: str, path: str) -> str | None:
+        """Raw text of `path` on `repo`'s default branch, or None if it does not exist."""
+        response = self._http.get(
+            f"{GITHUB_API_URL}/repos/{repo}/contents/{path}",
+            headers={**self._headers, "Accept": "application/vnd.github.raw+json"},
+        )
+        if response.status_code == 404:
+            return None
+        if response.status_code != 200:
+            raise GitHubError(
+                f"GitHub GET {path} of {repo} failed ({response.status_code}): {response.text}"
+            )
+        return response.text
+
     def _get(self, path: str, params: dict[str, str] | None = None):
         response = self._http.get(f"{GITHUB_API_URL}{path}", params=params, headers=self._headers)
         if response.status_code != 200:

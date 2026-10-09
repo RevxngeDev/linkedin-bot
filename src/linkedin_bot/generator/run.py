@@ -22,8 +22,13 @@ from typing import Protocol
 
 import httpx
 
-from linkedin_bot.generator.draft import write_note_draft
-from linkedin_bot.generator.prompt import GeneratorError, VoiceProfile, load_voice_profile
+from linkedin_bot.generator.draft import check_draft, write_draft
+from linkedin_bot.generator.prompt import (
+    GeneratorError,
+    VoiceProfile,
+    build_note_prompt,
+    load_voice_profile,
+)
 from linkedin_bot.llm.base import LLMClient, LLMError
 from linkedin_bot.llm.config import build_llm_client, load_llm_config
 from linkedin_bot.generator.projects import run_projects
@@ -77,9 +82,20 @@ def find_ideas(ideas_dir: Path, log: Callable[[str], None] = print) -> list[Idea
     return ideas
 
 
-def pull_request_body(idea: Idea, post_id: str) -> str:
+NO_CHECK = "Not available: the draft was written in an earlier run."
+
+
+def fact_check_section(report: str) -> str:
+    return f"""**Automatic fact check** (second AI pass; it flags, it does not edit)
+
+{report}
+"""
+
+
+def pull_request_body(idea: Idea, post_id: str, fact_check: str = NO_CHECK) -> str:
     return f"""Draft generated from the note `{idea.path.as_posix()}`.
 
+{fact_check_section(fact_check)}
 **Review checklist**
 - [ ] Every fact in the draft is in the note below (nothing invented).
 - [ ] It sounds like me; edit the file in this PR as much as needed.
@@ -108,8 +124,12 @@ def run_generator(
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     log: Callable[[str], None] = print,
     max_drafts: int = MAX_DRAFTS_PER_RUN,
+    checker: LLMClient | None = None,
 ) -> int:
-    """Return a process exit code: 0 = all good, 1 = at least one note failed."""
+    """Return a process exit code: 0 = all good, 1 = at least one note failed.
+
+    `checker` (optional) runs the fact-check pass whose report goes in the PR body.
+    """
     cited = {p.source_ref for p in store.list_queue() + store.list_published()}
     opened = 0
     failures = 0
@@ -128,15 +148,19 @@ def run_generator(
             break
 
         post_id = f"{clock():%Y-%m-%d}-{idea.slug}"
+        fact_check = NO_CHECK
         if git.remote_branch_exists(idea.branch):
             log(f"{source_ref}: branch {idea.branch} exists without a PR; opening the PR only.")
         else:
             try:
-                body = write_note_draft(llm, profile, idea.text)
+                prompt = build_note_prompt(idea.text)
+                body = write_draft(llm, profile, prompt)
             except (LLMError, GeneratorError) as exc:
                 log(f"{source_ref}: draft FAILED: {exc}")
                 failures += 1
                 continue
+            if checker is not None:
+                fact_check = check_draft(checker, prompt, body)
             post = Post(
                 id=post_id,
                 source="note",
@@ -155,7 +179,7 @@ def run_generator(
             head=idea.branch,
             base=BASE_BRANCH,
             title=f"Post draft: {idea.slug}",
-            body=pull_request_body(idea, post_id),
+            body=pull_request_body(idea, post_id, fact_check),
         )
         log(f"{source_ref}: opened PR #{pull['number']} {pull.get('html_url', '')}")
         opened += 1
@@ -176,9 +200,15 @@ def main() -> None:
         git = Git(Path("."), BASE_BRANCH, BOT_NAME, BOT_EMAIL)
         with httpx.Client(timeout=120) as http:
             github = GitHubClient(http, repository, os.environ.get("GITHUB_TOKEN"))
-            llm = build_llm_client(config, http, dict(os.environ))
-            notes_code = run_generator(IDEAS_DIR, store, git, github, llm, profile)
-            projects_code = run_projects(watch, store, git, github, llm, profile)
+            env = dict(os.environ)
+            llm = build_llm_client(config, http, env)
+            careful = build_llm_client(config, http, env, careful=True)
+            notes_code = run_generator(
+                IDEAS_DIR, store, git, github, llm, profile, checker=careful
+            )
+            projects_code = run_projects(
+                watch, store, git, github, careful, profile, checker=careful
+            )
     except (GeneratorError, LLMError, SourceError) as exc:
         sys.exit(f"Generator FAILED: {exc}")
     sys.exit(notes_code or projects_code)

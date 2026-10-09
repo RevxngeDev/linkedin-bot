@@ -32,6 +32,9 @@ REGLAS OBLIGATORIAS (tienen prioridad sobre cualquier otra instrucción):
    presentes como algo que "descubrió"; no digas que algo desaparece, se borra o deja de
    funcionar si el material no lo dice; y no conviertas un motivo en una regla ni una
    regla en un motivo. Incluye los hechos clave del material sin omitirlos.
+   Cuando cites una cifra o un resultado, conserva su contexto exacto: a qué periodo,
+   condición o prueba corresponde y con qué se compara. No mezcles cifras de contextos
+   distintos ni saques de ellas conclusiones que el material no saque.
    Sí puedes, y debes, escribir con carisma: emociones y reacciones del autor ante los
    hechos del material, ritmo, contraste y una voz cercana que enganche.
 2. Idioma: escribe el post en español, aunque el material esté en otro idioma.
@@ -113,7 +116,8 @@ def _project_header(snapshot: ProjectSnapshot) -> str:
         f"Repositorio: {snapshot.repo}\n"
         f"Enlace: {snapshot.url}\n"
         f"Descripción: {description}\n"
-        f"Lenguajes: {languages}\n\n"
+        "Lenguajes del código según GitHub (proporción de código; NO describen "
+        f"funcionalidades, interfaces ni componentes): {languages}\n\n"
         f"README:\n{readme}"
     )
 
@@ -144,3 +148,25 @@ def build_project_update_prompt(snapshot: ProjectSnapshot, activity: ProjectActi
         "para entender qué se añadió o modificó, sin suponer más de lo que muestran. "
         "Incluye el enlace al repositorio en una línea propia antes de los hashtags."
     )
+
+
+# --- Fact check (second pass): reports problems for the owner, never rewrites. ---
+
+NO_PROBLEMS = "SIN PROBLEMAS"
+
+CHECK_SYSTEM = f"""\
+Eres un verificador de hechos. Recibes un MATERIAL y un BORRADOR de post escrito a partir
+de él. Tu trabajo es encontrar en el borrador:
+- afirmaciones que el material no respalda (datos, componentes, resultados inventados);
+- hechos con el sentido cambiado;
+- cifras sacadas de su contexto (otro periodo, otra condición, otra comparación).
+No evalúes el estilo, el tono, las emociones ni los hashtags.
+
+Responde en español con una línea por problema, con este formato exacto:
+- «frase del borrador» → qué dice realmente el material
+Si no encuentras problemas, responde exactamente: {NO_PROBLEMS}"""
+
+
+def build_check_prompt(draft_prompt: str, draft: str) -> str:
+    """`draft_prompt` is the user prompt used to write the draft (it holds the material)."""
+    return f"{draft_prompt}\n\n<borrador>\n{draft}\n</borrador>\n\nVerifica el borrador."

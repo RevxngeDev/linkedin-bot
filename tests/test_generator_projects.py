@@ -117,6 +117,9 @@ class FakeGitHub:
     def get_readme(self, repo):
         return f"README de {repo}"
 
+    def get_file(self, repo, path):
+        return None
+
     def compare(self, repo, base, head):
         return {"status": "ahead", "total_commits": 1,
                 "commits": [{"sha": "abcdef12", "commit": {"message": "fixed"}}],
@@ -147,12 +150,14 @@ class FakeLLM:
         return "Post del proyecto #Python"
 
 
-def run(tmp_path, repos=(REPO,), github=None, git=None, llm=None, max_drafts=3):
+def run(tmp_path, repos=(REPO,), github=None, git=None, llm=None, max_drafts=3,
+        checker=None):
     config = WatchConfig(repos=list(repos), update_interval_days=7)
     github, git, llm = github or FakeGitHub(), git or FakeGit(), llm or FakeLLM()
     logs = []
     code = run_projects(config, PostStore(tmp_path), git, github, llm, PROFILE,
-                        clock=lambda: NOW, log=logs.append, max_drafts=max_drafts)
+                        clock=lambda: NOW, log=logs.append, max_drafts=max_drafts,
+                        checker=checker)
     return code, github, git, llm, logs
 
 
@@ -209,3 +214,36 @@ def test_per_run_limit(tmp_path, limit):
     repos = ("o/a", "o/b", "o/c")
     _, github, _, _, _ = run(tmp_path, repos=repos, max_drafts=limit)
     assert len(github.created) == limit
+
+
+class FakeChecker:
+    def __init__(self, reply):
+        self.reply = reply
+        self.calls = []
+
+    def generate(self, system, prompt):
+        self.calls.append((system, prompt))
+        if isinstance(self.reply, Exception):
+            raise self.reply
+        return self.reply
+
+
+def test_fact_check_report_goes_into_pr_body(tmp_path):
+    checker = FakeChecker("- «CLI en JavaScript» → el README no menciona ninguna CLI web")
+    _, github, _, _, _ = run(tmp_path, checker=checker)
+    [(system, prompt)] = checker.calls
+    assert "verificador" in system
+    assert "<borrador>\nPost del proyecto #Python\n</borrador>" in prompt
+    assert "README de" in prompt
+    assert "CLI en JavaScript" in github.created[0]["body"]
+
+
+def test_clean_fact_check_is_reported_as_no_problems(tmp_path):
+    _, github, _, _, _ = run(tmp_path, checker=FakeChecker("SIN PROBLEMAS"))
+    assert "No problems detected" in github.created[0]["body"]
+
+
+def test_failed_fact_check_does_not_block_the_pr(tmp_path):
+    _, github, _, _, _ = run(tmp_path, checker=FakeChecker(LLMError("429")))
+    assert len(github.created) == 1
+    assert "could not run" in github.created[0]["body"]

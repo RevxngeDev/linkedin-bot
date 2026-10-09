@@ -2,6 +2,7 @@ import pytest
 
 from linkedin_bot.sources.projects import (
     MAX_README_CHARS,
+    language_shares,
     SourceError,
     load_watch_config,
     read_activity,
@@ -11,9 +12,13 @@ from linkedin_bot.sources.projects import (
 
 
 class FakeReader:
-    def __init__(self, compare_status="ahead"):
+    def __init__(self, compare_status="ahead", spanish_readme=None):
         self.compare_status = compare_status
+        self.spanish_readme = spanish_readme
         self.compared = []
+
+    def get_file(self, repo, path):
+        return self.spanish_readme if path == "README.es.md" else None
 
     def get_repository(self, repo):
         return {"html_url": f"https://github.com/{repo}", "description": " Desc ",
@@ -69,7 +74,7 @@ def test_snapshot_collects_metadata_sorted_languages_and_truncated_readme():
     snap = take_snapshot(FakeReader(), "o/repo")
     assert snap.url == "https://github.com/o/repo"
     assert snap.description == "Desc"
-    assert snap.languages == ["Python", "HTML", "Mako"]
+    assert snap.languages == ["Python 98%", "HTML 2%", "Mako 1%"]
     assert snap.head_sha == "a" * 40
     assert snap.readme.endswith("[... README truncado ...]")
     assert len(snap.readme) <= MAX_README_CHARS + 40
@@ -91,3 +96,13 @@ def test_activity_lists_commits_and_files():
 def test_diverged_history_returns_no_commits():
     activity = read_activity(FakeReader(compare_status="diverged"), "o/r", "b", "h")
     assert activity.commits == [] and activity.files == []
+
+
+def test_spanish_readme_is_preferred():
+    snap = take_snapshot(FakeReader(spanish_readme="# TradeSentinel en español"), "o/r")
+    assert snap.readme == "# TradeSentinel en español"
+
+
+def test_language_shares():
+    assert language_shares({"HTML": 25, "Python": 75}) == ["Python 75%", "HTML 25%"]
+    assert language_shares({}) == []

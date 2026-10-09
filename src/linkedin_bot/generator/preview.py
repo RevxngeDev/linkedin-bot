@@ -11,8 +11,8 @@ import sys
 
 import httpx
 
-from linkedin_bot.generator.draft import write_note_draft
-from linkedin_bot.generator.prompt import GeneratorError, load_voice_profile
+from linkedin_bot.generator.draft import check_draft, write_draft
+from linkedin_bot.generator.prompt import GeneratorError, build_note_prompt, load_voice_profile
 from linkedin_bot.llm.base import LLMError
 from linkedin_bot.llm.config import build_llm_client, load_llm_config
 
@@ -23,8 +23,10 @@ def main() -> None:
         profile = load_voice_profile()
         config = load_llm_config()
         with httpx.Client(timeout=120) as http:
-            llm = build_llm_client(config, http, dict(os.environ))
-            draft = write_note_draft(llm, profile, note)
+            env = dict(os.environ)
+            prompt = build_note_prompt(note)
+            draft = write_draft(build_llm_client(config, http, env), profile, prompt)
+            report = check_draft(build_llm_client(config, http, env, careful=True), prompt, draft)
     except (GeneratorError, LLMError) as exc:
         sys.exit(f"Preview FAILED: {exc}")
     words = len(draft.split())
@@ -32,6 +34,9 @@ def main() -> None:
     print("----- DRAFT -----")
     print(draft)
     print("-----------------")
+    print("
+----- AUTOMATIC FACT CHECK -----")
+    print(report)
 
 
 if __name__ == "__main__":
