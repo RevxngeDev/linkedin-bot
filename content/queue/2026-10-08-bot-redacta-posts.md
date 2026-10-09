@@ -2,8 +2,9 @@
 id: 2026-10-08-bot-redacta-posts
 source: note
 source_ref: content/ideas/bot-redacta-posts.md
-status: queued
+status: publishing
 created_at: '2026-10-08T18:27:44+00:00'
+claimed_at: '2026-10-09T15:38:10.680722+00:00'
 ---
 
 Mi bot de LinkedIn ahora redacta los posts por mí a partir de notas como esta.
