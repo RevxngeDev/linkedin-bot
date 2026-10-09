@@ -102,10 +102,23 @@ def test_empty_note_is_rejected():
         ("Línea con espacios.   \n\nOtra.  ", "Línea con espacios.\n\nOtra."),
         ("__subrayado__ y 2 * 3 * 4", "subrayado y 2 * 3 * 4"),
         ("con espacio duro", "con espacio duro"),
+        # Real defect seen in PR #2 (2026-10-09): single-asterisk italics.
+        ("una regla clara: *no quería que se publicara nada*. Así",
+         "una regla clara: no quería que se publicara nada. Así"),
+        ("* punto uno\n* punto dos", "* punto uno\n* punto dos"),
+        ("*cursiva* y **negrita**", "cursiva y negrita"),
+        ("a*b*c sin espacios", "a*b*c sin espacios"),
     ],
 )
 def test_clean_draft(raw, expected):
     assert clean_draft(raw) == expected
+
+
+def test_core_rules_forbid_changing_the_meaning_of_facts():
+    rules = " ".join(CORE_RULES.split())
+    for phrase in ('"descubrió"', "desaparece", "motivo en una regla", "sin omitirlos",
+                   "conjugaciones"):
+        assert phrase in rules
 
 
 def test_core_rules_forbid_invented_technical_claims_but_allow_charisma():

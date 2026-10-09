@@ -16,6 +16,9 @@ WRAPPING_FENCE = re.compile(r"\A```[a-zA-Z]*\n(.*)\n```\Z", re.DOTALL)
 WRAPPING_QUOTES = (('"', '"'), ("“", "”"), ("«", "»"))
 # Markdown emphasis is not rendered by LinkedIn (D-022): keep the words, drop the markers.
 MARKDOWN_EMPHASIS = re.compile(r"(\*\*|__)(.+?)\1")
+# Single-asterisk italics (*texto*), but not "2 * 3" or "* item" bullets: the opening
+# asterisk must touch the word after it and the closing one the word before it.
+MARKDOWN_ITALIC = re.compile(r"(?<![*\w])\*(?=\S)([^*\n]+?)(?<=\S)\*(?![*\w])")
 # Non-standard hyphens and spaces that models emit (e.g. U+2011 in "gpt-oss").
 CHARACTER_FIXES = str.maketrans(
     {"‐": "-", "‑": "-", " ": " ", " ": " "}
@@ -32,7 +35,8 @@ def clean_draft(text: str) -> str:
         inner = text[len(opening) : -len(closing)]
         if text.startswith(opening) and text.endswith(closing) and opening not in inner:
             text = inner.strip()
-    text = MARKDOWN_EMPHASIS.sub(r"\2", text).translate(CHARACTER_FIXES)
+    text = MARKDOWN_EMPHASIS.sub(r"\2", text)
+    text = MARKDOWN_ITALIC.sub(r"\1", text).translate(CHARACTER_FIXES)
     return "\n".join(line.rstrip() for line in text.splitlines())
 
 
