@@ -1,13 +1,19 @@
 name: Preview a draft
 
-# Manual tool to tune config/voice_profile.md: writes a draft for the given note and
-# prints it in the log. Opens no PR and publishes nothing.
+# Manual tool to tune config/voice_profile.md: writes a draft (and its automatic fact
+# check) for a note or for a repo introduction, and prints it in the log.
+# Opens no PR and publishes nothing.
 on:
   workflow_dispatch:
     inputs:
+      repo:
+        description: "Public repo (owner/name) to preview an introduction post for. Leave empty to use the note."
+        required: false
+        default: ""
       note:
-        description: "Note text to turn into a draft (Spanish)"
-        required: true
+        description: "Note text to turn into a draft (Spanish). Ignored if repo is set."
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -21,6 +27,8 @@ jobs:
       - name: Generate draft
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Passed through env (never interpolated into the script) to avoid injection.
+          PREVIEW_REPO: ${{ inputs.repo }}
           PREVIEW_NOTE: ${{ inputs.note }}
         run: uv run python -m linkedin_bot.generator.preview
