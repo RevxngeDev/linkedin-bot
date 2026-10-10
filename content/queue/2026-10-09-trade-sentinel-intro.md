@@ -2,8 +2,9 @@
 id: 2026-10-09-trade-sentinel-intro
 source: project_intro
 source_ref: RevxngeDev/trade-sentinel@17fcf820c438cdd018b30b46f359b67a6391a1e3
-status: queued
+status: publishing
 created_at: '2026-10-09T16:16:12+00:00'
+claimed_at: '2026-10-10T15:23:31.837354+00:00'
 ---
 
 Una señal determinista para BTC/USDT que no ejecuta trades, solo explica y registra lo que ocurre.
