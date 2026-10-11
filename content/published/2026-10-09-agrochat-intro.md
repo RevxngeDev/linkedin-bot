@@ -2,9 +2,11 @@
 id: 2026-10-09-agrochat-intro
 source: project_intro
 source_ref: RevxngeDev/AgroChat@d916b34d7f985d79444cc8b1503b57f99d0195fc
-status: publishing
+status: published
 created_at: '2026-10-09T16:16:18+00:00'
 claimed_at: '2026-10-11T15:42:31.896648+00:00'
+linkedin_urn: urn:li:share:7515074370176921600
+published_at: '2026-10-11T15:42:33.761873+00:00'
 ---
 
 Una conversación que realmente entiende a los caficultores y cacaoteros colombianos: un asistente que responde con recomendaciones agronómicas respaldadas por documentos oficiales de AGROSAVIA.
