@@ -2,9 +2,11 @@
 id: 2026-10-09-kakao-intro
 source: project_intro
 source_ref: RevxngeDev/Kakao@6aa0aeb8184d964cf45f691d71d3b19119c0651b
-status: publishing
+status: published
 created_at: '2026-10-09T16:16:46+00:00'
 claimed_at: '2026-10-12T19:04:08.268882+00:00'
+linkedin_urn: urn:li:share:7515487495229407232
+published_at: '2026-10-12T19:04:10.438819+00:00'
 ---
 
 Capturo el audio que reproduce mi PC — YouTube, una videollamada o una película — y le superpongo subtítulos traducidos en tiempo real, sin depender de la nube ni de claves de API.
