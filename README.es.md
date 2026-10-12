@@ -115,7 +115,7 @@ uv run pytest -q
 - ✅ Borradores desde notas, un PR por borrador, verificación automática.
 - ✅ Presentaciones de proyectos desde los repos vigilados; actualizaciones semanales implementadas.
 - ✅ Aviso automático (Issue de GitHub) antes de que caduque el token de LinkedIn.
-- 🔜 Siguiente: imágenes adjuntas y publicación programada en producción.
+- 🔜 Ideas para más adelante: un bot de Telegram para revisar borradores desde el móvil.
 
 ## Lo que no hace
 

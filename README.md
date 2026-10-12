@@ -113,7 +113,7 @@ uv run pytest -q
 - ✅ Drafts from notes, one PR per draft, automatic fact check.
 - ✅ Project introductions from watched repos; weekly update posts implemented.
 - ✅ Automatic reminder (GitHub issue) before the LinkedIn token expires.
-- 🔜 Next: image attachments and scheduled publishing in production.
+- 🔜 Ideas for later: a Telegram bot to review drafts from my phone.
 
 ## Non-goals
 
