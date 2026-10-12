@@ -166,3 +166,48 @@ def test_list_recent_chats():
 
     with httpx.Client(transport=httpx.MockTransport(handler)) as http:
         assert list_recent_chats(http, TOKEN) == [(555, "Camilo")]
+
+
+def telegram_api(routes):
+    def handler(request):
+        method = request.url.path.rsplit("/", 1)[-1]
+        return httpx.Response(200, json=routes[method])
+    return httpx.Client(transport=httpx.MockTransport(handler))
+
+
+def test_diagnose_reports_bot_and_chat(capsys):
+    from linkedin_bot.ops.telegram_check import diagnose
+
+    http = telegram_api({
+        "getMe": {"ok": True, "result": {"id": 9, "username": "RevxngeLinkedinBot"}},
+        "getWebhookInfo": {"ok": True, "result": {"url": ""}},
+        "getUpdates": {"ok": True, "result": [
+            {"update_id": 1, "my_chat_member": {"chat": {"id": 777, "first_name": "Camilo"}}}]},
+    })
+    assert diagnose(http, TOKEN) == 0
+    out = capsys.readouterr().out
+    assert "@RevxngeLinkedinBot" in out and "chat_id=777" in out and TOKEN not in out
+
+
+def test_diagnose_detects_webhook(capsys):
+    from linkedin_bot.ops.telegram_check import diagnose
+
+    http = telegram_api({
+        "getMe": {"ok": True, "result": {"id": 9, "username": "b"}},
+        "getWebhookInfo": {"ok": True, "result": {"url": "https://elsewhere/hook"}},
+    })
+    assert diagnose(http, TOKEN) == 1
+    assert "webhook is set" in capsys.readouterr().out
+
+
+def test_diagnose_without_messages_explains(capsys):
+    from linkedin_bot.ops.telegram_check import diagnose
+
+    http = telegram_api({
+        "getMe": {"ok": True, "result": {"id": 9, "username": "b"}},
+        "getWebhookInfo": {"ok": True, "result": {"url": ""}},
+        "getUpdates": {"ok": True, "result": []},
+    })
+    assert diagnose(http, TOKEN) == 1
+    out = capsys.readouterr().out
+    assert "Pending updates: 0" in out and "No chats found" in out
