@@ -139,3 +139,29 @@ def test_get_file_raw_and_missing():
     client = _client(handler)
     assert client.get_file("o/x", "README.es.md") == "# Hola"
     assert client.get_file("o/x", "nope.md") is None
+
+
+def test_list_open_issues_excludes_pull_requests():
+    def handler(request):
+        assert dict(request.url.params)["state"] == "open"
+        return httpx.Response(200, json=[{"number": 1, "title": "Issue"},
+                                         {"number": 2, "title": "PR", "pull_request": {}}])
+
+    assert [i["number"] for i in _client(handler).list_open_issues()] == [1]
+
+
+def test_create_issue_posts_title_and_body():
+    seen = {}
+
+    def handler(request):
+        seen["request"] = request
+        return httpx.Response(201, json={"number": 3, "html_url": "u"})
+
+    assert _client(handler).create_issue("T", "B")["number"] == 3
+    assert str(seen["request"].url) == "https://api.github.com/repos/o/r/issues"
+    assert json.loads(seen["request"].content) == {"title": "T", "body": "B"}
+
+
+def test_create_issue_error_raises():
+    with pytest.raises(GitHubError, match="410"):
+        _client(lambda r: httpx.Response(410, text="Issues disabled")).create_issue("T", "B")

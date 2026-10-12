@@ -21,6 +21,9 @@ from urllib.parse import parse_qs, urlencode, urlparse
 import httpx
 from dotenv import load_dotenv
 
+from linkedin_bot.ops.token_reminder import DEFAULT_CONFIG_PATH as TOKEN_CONFIG_FILE
+from linkedin_bot.ops.token_reminder import write_token_expiry
+
 AUTHORIZATION_URL = "https://www.linkedin.com/oauth/v2/authorization"
 TOKEN_URL = "https://www.linkedin.com/oauth/v2/accessToken"
 USERINFO_URL = "https://api.linkedin.com/v2/userinfo"
@@ -193,6 +196,11 @@ def main() -> None:
     print(f"Scopes     : {result.scope}")
     print(f"Expires at : {result.expires_at:%Y-%m-%d %H:%M} UTC")
     print(f"Token saved to {TOKEN_FILE} (git-ignored). Do not share it.")
+    write_token_expiry(result.expires_at)
+    print(
+        f"Updated {TOKEN_CONFIG_FILE} with the new expiry: update the LINKEDIN_ACCESS_TOKEN "
+        "secret, then commit and push that file."
+    )
 
 
 if __name__ == "__main__":

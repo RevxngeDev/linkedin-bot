@@ -150,3 +150,11 @@ def test_already_published_id_left_in_queue_is_never_republished(store):
     store.save_to_queue(queued_post())  # same id back in the queue
     code, _, _, linkedin, _ = run(store)
     assert code == 0 and linkedin.calls == []
+
+
+def test_expired_token_gives_renewal_hint(store):
+    error = PublishError("Create post failed (401): expired", status_code=401)
+    code, _, _, _, logs = run(store, linkedin=FakeLinkedIn(error))
+    assert code == 1
+    assert store.list_queue()[0].status == QUEUED
+    assert any("linkedin-bot-auth" in line for line in logs)

@@ -1,0 +1,6 @@
+# Expiry of the LinkedIn access token stored in the LINKEDIN_ACCESS_TOKEN secret (D-031).
+# Not a secret. `uv run linkedin-bot-auth` rewrites expires_at after each renewal:
+# commit this file together with updating the secret.
+expires_at: "2026-12-06T12:52:00+00:00"
+# token-reminder.yml opens a GitHub issue once the expiry is this close.
+remind_days_before: 14

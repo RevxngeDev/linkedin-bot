@@ -1,0 +1,31 @@
+name: LinkedIn token reminder
+
+# Daily check of config/linkedin_token.yml: opens one GitHub issue with the renewal steps
+# when the LinkedIn token is within `remind_days_before` of expiring (D-031).
+# Manual runs can simulate a date with `as_of` to test the reminder.
+on:
+  schedule:
+    - cron: "23 8 * * *"
+  workflow_dispatch:
+    inputs:
+      as_of:
+        description: "Optional date to simulate (YYYY-MM-DD). Empty = today."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+      - name: Check token expiry
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Passed through env (never interpolated into the script) to avoid injection.
+          TOKEN_CHECK_AS_OF: ${{ inputs.as_of }}
+        run: uv run linkedin-bot-token-check

@@ -80,6 +80,7 @@ content/         ideas/ · queue/ · published/  (the published log is append-on
 | `publish.yml` | merge into the queue, daily, manual | publishes the next approved, due post |
 | `preview-draft.yml` | manual | prints a draft and its fact check for a note or a repo — opens nothing, publishes nothing |
 | `llm-check.yml` | manual | one short generation to verify the LLM key and model |
+| `token-reminder.yml` | daily, manual | opens a GitHub issue with renewal steps 14 days before the LinkedIn token expires |
 
 ## Running it yourself
 
@@ -89,7 +90,9 @@ content/         ideas/ · queue/ · published/  (the published log is append-on
 2. **Get a token locally:** `cp .env.example .env`, fill in the client id and secret,
    then run `uv run linkedin-bot-auth`, sign in and click *Allow*. It prints your member
    URN and the token expiry and saves the token to `.linkedin_token.json` (git-ignored).
-   LinkedIn access tokens last 60 days; repeat this step before they expire.
+   LinkedIn access tokens last 60 days; repeat this step before they expire. The helper
+   also writes the new expiry to `config/linkedin_token.yml` (commit it) so the reminder
+   workflow knows when to warn you.
 3. **Repository secrets** (Settings → Secrets and variables → Actions):
    `LINKEDIN_ACCESS_TOKEN`, `LINKEDIN_MEMBER_URN`, `GROQ_API_KEY`.
 4. **Repository settings:** allow GitHub Actions to create pull requests
@@ -108,8 +111,8 @@ uv run pytest -q
 - ✅ Publishing from the queue with approval check, idempotency and daily limit.
 - ✅ Drafts from notes, one PR per draft, automatic fact check.
 - ✅ Project introductions from watched repos; weekly update posts implemented.
-- 🔜 Next: image attachments, scheduled publishing in production, and an automatic
-  reminder before the LinkedIn token expires.
+- ✅ Automatic reminder (GitHub issue) before the LinkedIn token expires.
+- 🔜 Next: image attachments and scheduled publishing in production.
 
 ## Non-goals
 

@@ -91,6 +91,12 @@ def run_once(
         store.save_to_queue(replace(claimed, status=QUEUED, claimed_at=None))
         git.commit_and_push([queue_path], f"Release claim on post {post.id} (rejected)")
         log(f"LinkedIn rejected the post; it is queued again: {exc}")
+        if exc.status_code == 401:
+            log(
+                "The LinkedIn access token is expired or revoked. Renew it with "
+                "`uv run linkedin-bot-auth` and update the LINKEDIN_ACCESS_TOKEN secret "
+                "(see the [linkedin-token] reminder issue)."
+            )
         return 1
     except httpx.TransportError as exc:
         log(f"UNKNOWN OUTCOME (network error), left in 'publishing': {exc!r}")

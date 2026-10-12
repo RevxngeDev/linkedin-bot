@@ -68,6 +68,22 @@ class GitHubClient:
                 break
         return pulls
 
+    # --- Issues (token-expiry reminder, D-031) ---
+
+    def list_open_issues(self) -> list[dict]:
+        """Open issues of this repository, excluding pull requests (which the API mixes in)."""
+        items = self._get(
+            f"/repos/{self._repository}/issues", params={"state": "open", "per_page": "100"}
+        )
+        return [item for item in items if "pull_request" not in item]
+
+    def create_issue(self, title: str, body: str) -> dict:
+        url = f"{GITHUB_API_URL}/repos/{self._repository}/issues"
+        response = self._http.post(url, json={"title": title, "body": body}, headers=self._headers)
+        if response.status_code != 201:
+            raise GitHubError(f"Create issue failed ({response.status_code}): {response.text}")
+        return response.json()
+
     # --- Read-only data about watched repos (Phase 3, D-029) ---
 
     def get_repository(self, repo: str) -> dict:
