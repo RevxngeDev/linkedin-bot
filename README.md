@@ -69,8 +69,9 @@ src/linkedin_bot/
 ├── llm/         LLMClient interface + Groq client (retries on rate limits)
 ├── store/       post files: parse, validate, render, move queue → published
 ├── publisher/   selection rules, PR approval check, LinkedIn client, publish run
-└── repo/        git CLI wrapper and GitHub REST client shared by both pipelines
-config/          llm.yml · voice_profile.md · watched_repos.yml
+├── repo/        git CLI wrapper and GitHub REST client shared by both pipelines
+└── ops/         token-expiry reminder
+config/          llm.yml · voice_profile.md · watched_repos.yml · linkedin_token.yml
 content/         ideas/ · queue/ · published/  (the published log is append-only)
 ```
 

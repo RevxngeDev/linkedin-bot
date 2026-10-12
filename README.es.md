@@ -71,8 +71,9 @@ src/linkedin_bot/
 ├── llm/         interfaz LLMClient + cliente de Groq (reintenta ante límites de uso)
 ├── store/       archivos de post: leer, validar, escribir, mover cola → publicados
 ├── publisher/   reglas de selección, verificación de PR, cliente de LinkedIn, publicación
-└── repo/        envoltorio de git y cliente REST de GitHub compartidos por ambos pipelines
-config/          llm.yml · voice_profile.md · watched_repos.yml
+├── repo/        envoltorio de git y cliente REST de GitHub compartidos por ambos pipelines
+└── ops/         aviso de caducidad del token
+config/          llm.yml · voice_profile.md · watched_repos.yml · linkedin_token.yml
 content/         ideas/ · queue/ · published/  (el registro de publicados solo crece)
 ```
 
@@ -82,6 +83,7 @@ content/         ideas/ · queue/ · published/  (el registro de publicados solo
 | `publish.yml` | merge a la cola, diario, manual | publica el siguiente post aprobado y vencido |
 | `preview-draft.yml` | manual | muestra un borrador y su verificación para una nota o un repo; no abre nada ni publica |
 | `llm-check.yml` | manual | una generación corta para comprobar la clave y el modelo de IA |
+| `token-reminder.yml` | diario, manual | abre un Issue de GitHub con los pasos de renovación 14 días antes de que caduque el token de LinkedIn |
 
 ## Ponerlo en marcha
 
@@ -92,6 +94,8 @@ content/         ideas/ · queue/ · published/  (el registro de publicados solo
    ejecuta `uv run linkedin-bot-auth`, inicia sesión y pulsa *Allow*. Muestra tu URN de
    miembro y la caducidad del token, y guarda el token en `.linkedin_token.json` (ignorado
    por git). Los tokens de LinkedIn duran 60 días; repite este paso antes de que caduquen.
+   El script también escribe la nueva fecha en `config/linkedin_token.yml` (haz commit)
+   para que el workflow de aviso sepa cuándo avisarte.
 3. **Secrets del repositorio** (Settings → Secrets and variables → Actions):
    `LINKEDIN_ACCESS_TOKEN`, `LINKEDIN_MEMBER_URN`, `GROQ_API_KEY`.
 4. **Ajustes del repositorio:** permite que GitHub Actions cree pull requests
@@ -110,8 +114,8 @@ uv run pytest -q
 - ✅ Publicación desde la cola con verificación de aprobación, sin duplicados y con límite diario.
 - ✅ Borradores desde notas, un PR por borrador, verificación automática.
 - ✅ Presentaciones de proyectos desde los repos vigilados; actualizaciones semanales implementadas.
-- 🔜 Siguiente: imágenes adjuntas, publicación programada en producción y un aviso
-  automático antes de que caduque el token de LinkedIn.
+- ✅ Aviso automático (Issue de GitHub) antes de que caduque el token de LinkedIn.
+- 🔜 Siguiente: imágenes adjuntas y publicación programada en producción.
 
 ## Lo que no hace
 
