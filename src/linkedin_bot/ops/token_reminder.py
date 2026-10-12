@@ -19,6 +19,9 @@ from typing import Protocol
 import httpx
 import yaml
 
+from linkedin_bot.notify import messages
+from linkedin_bot.notify.telegram import Notifier, NullNotifier, build_notifier
+
 DEFAULT_CONFIG_PATH = Path("config/linkedin_token.yml")
 DEFAULT_REMIND_DAYS_BEFORE = 14
 ISSUE_MARKER = "[linkedin-token]"
@@ -130,8 +133,13 @@ def run_reminder(
     issues: IssuesPort,
     now: datetime,
     log: Callable[[str], None] = print,
+    notifier: Notifier | None = None,
 ) -> int:
-    """Return 0 when nothing is wrong, 1 when the token has already expired."""
+    """Return 0 when nothing is wrong, 1 when the token has already expired.
+
+    Telegram is notified when the reminder issue is opened and on every run once expired.
+    """
+    notifier = notifier or NullNotifier()
     reminder = evaluate(config, now)
     if reminder is None:
         days_left = (config.expires_at - now).days
@@ -143,9 +151,21 @@ def run_reminder(
     )
     if open_issue is not None:
         log(f"Reminder issue #{open_issue['number']} is already open; not creating another.")
+        issue = open_issue
     else:
         issue = issues.create_issue(reminder.title, reminder.body)
         log(f"Opened reminder issue #{issue['number']}: {issue.get('html_url', '')}")
+    if open_issue is None or reminder.expired:
+        title = "El token de LinkedIn CADUCÓ" if reminder.expired else "Renueva el token de LinkedIn"
+        days_left = (config.expires_at - now).days
+        detail = (
+            f"Caduca el {config.expires_at:%Y-%m-%d %H:%M} UTC"
+            + ("" if reminder.expired else f" (quedan {days_left} días)")
+            + ". Con la VPN activa ejecuta `uv run linkedin-bot-auth`, actualiza el secret "
+            "LINKEDIN_ACCESS_TOKEN y haz commit de config/linkedin_token.yml."
+        )
+        link = ("📋 Abrir el Issue", issue["html_url"]) if issue.get("html_url") else None
+        notifier.send(*messages.problem(title, detail, link))
     return 1 if reminder.expired else 0
 
 
@@ -163,7 +183,8 @@ def main() -> None:
             github = GitHubClient(http, repository, os.environ.get("GITHUB_TOKEN"))
             if as_of:
                 print(f"Simulating the check as of {now:%Y-%m-%d %H:%M} UTC.")
-            exit_code = run_reminder(config, github, now)
+            notifier = build_notifier(http, os.environ)
+            exit_code = run_reminder(config, github, now, notifier=notifier)
     except (TokenConfigError, GitHubError) as exc:
         sys.exit(f"Token check FAILED: {exc}")
     sys.exit(exit_code)

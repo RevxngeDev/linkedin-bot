@@ -188,3 +188,23 @@ def test_without_checker_pr_says_check_not_available(workspace):
     write_idea(ideas, "n", "Nota.")
     _, _, github, _, _ = run(workspace)
     assert "Not available" in github.created[0]["body"]
+
+
+def test_new_draft_is_notified_with_pr_button(workspace):
+    ideas, _ = workspace
+    write_idea(ideas, "n", "Nota real.")
+
+    class Recorder:
+        def __init__(self):
+            self.sent = []
+
+        def send(self, text, buttons=()):
+            self.sent.append((text, list(buttons)))
+
+    recorder = Recorder()
+    ideas_dir, store = workspace
+    run_generator(ideas_dir, store, FakeGit(), FakeGitHub(), FakeLLM(), PROFILE,
+                  clock=lambda: NOW, log=lambda _: None, notifier=recorder)
+    [(text, buttons)] = recorder.sent
+    assert "Nuevo borrador" in text and "Borrador sobre: Nota real." in text
+    assert buttons == [("📝 Revisar PR", "u")]

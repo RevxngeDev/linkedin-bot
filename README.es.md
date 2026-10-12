@@ -72,7 +72,8 @@ src/linkedin_bot/
 ├── store/       archivos de post: leer, validar, escribir, mover cola → publicados
 ├── publisher/   reglas de selección, verificación de PR, cliente de LinkedIn, publicación
 ├── repo/        envoltorio de git y cliente REST de GitHub compartidos por ambos pipelines
-└── ops/         aviso de caducidad del token
+├── notify/      avisos opcionales por Telegram (solo salida)
+└── ops/         aviso de caducidad del token, resumen semanal, comprobación de Telegram
 config/          llm.yml · voice_profile.md · watched_repos.yml · linkedin_token.yml
 content/         ideas/ · queue/ · published/  (el registro de publicados solo crece)
 ```
@@ -84,6 +85,8 @@ content/         ideas/ · queue/ · published/  (el registro de publicados solo
 | `preview-draft.yml` | manual | muestra un borrador y su verificación para una nota o un repo; no abre nada ni publica |
 | `llm-check.yml` | manual | una generación corta para comprobar la clave y el modelo de IA |
 | `token-reminder.yml` | diario, manual | abre un Issue de GitHub con los pasos de renovación 14 días antes de que caduque el token de LinkedIn |
+| `weekly-summary.yml` | semanal, manual | resumen por Telegram: publicados, en cola, borradores pendientes, caducidad del token |
+| `telegram-check.yml` | manual | configuración de Telegram: muestra tu chat id o envía un mensaje de prueba |
 
 ## Ponerlo en marcha
 
@@ -97,7 +100,9 @@ content/         ideas/ · queue/ · published/  (el registro de publicados solo
    El script también escribe la nueva fecha en `config/linkedin_token.yml` (haz commit)
    para que el workflow de aviso sepa cuándo avisarte.
 3. **Secrets del repositorio** (Settings → Secrets and variables → Actions):
-   `LINKEDIN_ACCESS_TOKEN`, `LINKEDIN_MEMBER_URN`, `GROQ_API_KEY`.
+   `LINKEDIN_ACCESS_TOKEN`, `LINKEDIN_MEMBER_URN`, `GROQ_API_KEY`; opcionalmente
+   `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID` para los avisos (ejecuta `telegram-check.yml`
+   una vez para saber tu chat id).
 4. **Ajustes del repositorio:** permite que GitHub Actions cree pull requests
    (Settings → Actions → General) y activa "Automatically delete head branches".
 5. Edita `config/voice_profile.md` (tu tono y al menos 3 posts escritos por ti) y
@@ -115,7 +120,9 @@ uv run pytest -q
 - ✅ Borradores desde notas, un PR por borrador, verificación automática.
 - ✅ Presentaciones de proyectos desde los repos vigilados; actualizaciones semanales implementadas.
 - ✅ Aviso automático (Issue de GitHub) antes de que caduque el token de LinkedIn.
-- 🔜 Ideas para más adelante: un bot de Telegram para revisar borradores desde el móvil.
+- ✅ Avisos por Telegram (opcionales): borradores nuevos con botón al PR, posts publicados con
+  botón a LinkedIn, problemas y resumen semanal; los envía GitHub Actions, sin servidor.
+- 🔜 Ideas para más adelante: aprobar y programar desde Telegram (necesita un proceso siempre a la escucha).
 
 ## Lo que no hace
 

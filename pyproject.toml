@@ -18,6 +18,8 @@ linkedin-bot-auth = "linkedin_bot.auth.oauth_helper:main"
 linkedin-bot-publish = "linkedin_bot.publisher.run:main"
 linkedin-bot-generate = "linkedin_bot.generator.run:main"
 linkedin-bot-token-check = "linkedin_bot.ops.token_reminder:main"
+linkedin-bot-weekly-summary = "linkedin_bot.ops.weekly_summary:main"
+linkedin-bot-telegram-check = "linkedin_bot.ops.telegram_check:main"
 
 [build-system]
 requires = ["uv_build>=0.12.0,<0.14.0"]

@@ -26,6 +26,8 @@ jobs:
       - name: Check token expiry
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           # Passed through env (never interpolated into the script) to avoid injection.
           TOKEN_CHECK_AS_OF: ${{ inputs.as_of }}
         run: uv run linkedin-bot-token-check

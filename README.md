@@ -70,7 +70,8 @@ src/linkedin_bot/
 ├── store/       post files: parse, validate, render, move queue → published
 ├── publisher/   selection rules, PR approval check, LinkedIn client, publish run
 ├── repo/        git CLI wrapper and GitHub REST client shared by both pipelines
-└── ops/         token-expiry reminder
+├── notify/      optional Telegram notifications (outgoing only)
+└── ops/         token-expiry reminder, weekly summary, Telegram setup check
 config/          llm.yml · voice_profile.md · watched_repos.yml · linkedin_token.yml
 content/         ideas/ · queue/ · published/  (the published log is append-only)
 ```
@@ -82,6 +83,8 @@ content/         ideas/ · queue/ · published/  (the published log is append-on
 | `preview-draft.yml` | manual | prints a draft and its fact check for a note or a repo — opens nothing, publishes nothing |
 | `llm-check.yml` | manual | one short generation to verify the LLM key and model |
 | `token-reminder.yml` | daily, manual | opens a GitHub issue with renewal steps 14 days before the LinkedIn token expires |
+| `weekly-summary.yml` | weekly, manual | Telegram summary: published, queued, drafts awaiting review, token expiry |
+| `telegram-check.yml` | manual | Telegram setup: shows your chat id or sends a test message |
 
 ## Running it yourself
 
@@ -95,7 +98,9 @@ content/         ideas/ · queue/ · published/  (the published log is append-on
    also writes the new expiry to `config/linkedin_token.yml` (commit it) so the reminder
    workflow knows when to warn you.
 3. **Repository secrets** (Settings → Secrets and variables → Actions):
-   `LINKEDIN_ACCESS_TOKEN`, `LINKEDIN_MEMBER_URN`, `GROQ_API_KEY`.
+   `LINKEDIN_ACCESS_TOKEN`, `LINKEDIN_MEMBER_URN`, `GROQ_API_KEY`; optionally
+   `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` for notifications (run `telegram-check.yml`
+   once to find your chat id).
 4. **Repository settings:** allow GitHub Actions to create pull requests
    (Settings → Actions → General) and enable "Automatically delete head branches".
 5. Edit `config/voice_profile.md` (your tone and 3+ example posts written by you) and
@@ -113,7 +118,9 @@ uv run pytest -q
 - ✅ Drafts from notes, one PR per draft, automatic fact check.
 - ✅ Project introductions from watched repos; weekly update posts implemented.
 - ✅ Automatic reminder (GitHub issue) before the LinkedIn token expires.
-- 🔜 Ideas for later: a Telegram bot to review drafts from my phone.
+- ✅ Telegram notifications (optional): new drafts with a button to the PR, published posts
+  with a button to LinkedIn, problems and a weekly summary — sent by GitHub Actions, no server.
+- 🔜 Ideas for later: approving and scheduling from Telegram (needs an always-on listener).
 
 ## Non-goals
 

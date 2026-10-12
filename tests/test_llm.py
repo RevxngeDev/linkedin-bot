@@ -148,7 +148,7 @@ def test_invalid_config_raises(tmp_path, content, message):
 
 def test_build_client_requires_api_key():
     config = LLMConfig("groq", "m", 10)
-    with httpx.Client() as http:
+    with httpx.Client(trust_env=False) as http:
         with pytest.raises(LLMError, match="GROQ_API_KEY"):
             build_llm_client(config, http, {})
         assert isinstance(build_llm_client(config, http, {"GROQ_API_KEY": "k"}), GroqClient)

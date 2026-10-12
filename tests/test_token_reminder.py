@@ -118,3 +118,42 @@ def test_invalid_token_config(tmp_path, content, message):
     path.write_text(content, encoding="utf-8")
     with pytest.raises(TokenConfigError, match=message):
         load_token_config(path)
+
+
+class Recorder:
+    def __init__(self):
+        self.sent = []
+
+    def send(self, text, buttons=()):
+        self.sent.append((text, list(buttons)))
+
+
+class StatefulIssues(FakeIssues):
+    """Like GitHub: an issue created by one run is listed as open by the next one."""
+
+    def create_issue(self, title, body):
+        issue = {**super().create_issue(title, body), "html_url": "https://github.com/o/r/issues/40"}
+        self.open.append(issue)
+        return issue
+
+
+def test_telegram_notified_once_when_issue_opens():
+    issues, recorder = StatefulIssues(), Recorder()
+    run_reminder(CONFIG, issues, datetime(2026, 11, 25, tzinfo=UTC), lambda _: None, recorder)
+    run_reminder(CONFIG, issues, datetime(2026, 11, 26, tzinfo=UTC), lambda _: None, recorder)
+    [(text, buttons)] = recorder.sent
+    assert "Renueva el token" in text and "quedan 11 días" in text
+    assert buttons == [("📋 Abrir el Issue", "https://github.com/o/r/issues/40")]
+
+
+def test_telegram_notified_every_run_once_expired():
+    issues, recorder = StatefulIssues(), Recorder()
+    for day in (7, 8):
+        run_reminder(CONFIG, issues, datetime(2026, 12, day, tzinfo=UTC), lambda _: None, recorder)
+    assert len(recorder.sent) == 2 and all("CADUCÓ" in text for text, _ in recorder.sent)
+
+
+def test_no_telegram_outside_the_window():
+    recorder = Recorder()
+    run_reminder(CONFIG, FakeIssues(), datetime(2026, 10, 12, tzinfo=UTC), lambda _: None, recorder)
+    assert recorder.sent == []

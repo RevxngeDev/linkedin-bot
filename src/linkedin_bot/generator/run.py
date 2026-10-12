@@ -32,6 +32,8 @@ from linkedin_bot.generator.prompt import (
 from linkedin_bot.llm.base import LLMClient, LLMError
 from linkedin_bot.llm.config import build_llm_client, load_llm_config
 from linkedin_bot.generator.projects import run_projects
+from linkedin_bot.notify import messages
+from linkedin_bot.notify.telegram import Notifier, NullNotifier, build_notifier
 from linkedin_bot.repo.git import Git
 from linkedin_bot.repo.github import GitHubClient
 from linkedin_bot.sources.projects import SourceError, load_watch_config
@@ -125,11 +127,13 @@ def run_generator(
     log: Callable[[str], None] = print,
     max_drafts: int = MAX_DRAFTS_PER_RUN,
     checker: LLMClient | None = None,
+    notifier: Notifier | None = None,
 ) -> int:
     """Return a process exit code: 0 = all good, 1 = at least one note failed.
 
     `checker` (optional) runs the fact-check pass whose report goes in the PR body.
     """
+    notifier = notifier or NullNotifier()
     cited = {p.source_ref for p in store.list_queue() + store.list_published()}
     opened = 0
     failures = 0
@@ -149,6 +153,7 @@ def run_generator(
 
         post_id = f"{clock():%Y-%m-%d}-{idea.slug}"
         fact_check = NO_CHECK
+        body = '(borrador escrito en una ejecución anterior; ábrelo en el PR)'
         if git.remote_branch_exists(idea.branch):
             log(f"{source_ref}: branch {idea.branch} exists without a PR; opening the PR only.")
         else:
@@ -182,9 +187,17 @@ def run_generator(
             body=pull_request_body(idea, post_id, fact_check),
         )
         log(f"{source_ref}: opened PR #{pull['number']} {pull.get('html_url', '')}")
+        notifier.send(*messages.draft_opened(
+            "nota", source_ref, body, fact_check, pull.get("html_url", ""), pull["number"]
+        ))
         opened += 1
 
     log(f"Done: {opened} PR(s) opened, {failures} failure(s).")
+    if failures:
+        notifier.send(*messages.problem(
+            "No se pudieron redactar algunas notas",
+            f"{failures} nota(s) fallaron en esta ejecución; se reintentarán en la siguiente.",
+        ))
     return 1 if failures else 0
 
 
@@ -203,11 +216,12 @@ def main() -> None:
             env = dict(os.environ)
             llm = build_llm_client(config, http, env)
             careful = build_llm_client(config, http, env, careful=True)
+            notifier = build_notifier(http, env)
             notes_code = run_generator(
-                IDEAS_DIR, store, git, github, llm, profile, checker=careful
+                IDEAS_DIR, store, git, github, llm, profile, checker=careful, notifier=notifier
             )
             projects_code = run_projects(
-                watch, store, git, github, careful, profile, checker=careful
+                watch, store, git, github, careful, profile, checker=careful, notifier=notifier
             )
     except (GeneratorError, LLMError, SourceError) as exc:
         sys.exit(f"Generator FAILED: {exc}")

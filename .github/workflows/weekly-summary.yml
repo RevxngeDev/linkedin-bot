@@ -1,0 +1,25 @@
+name: Weekly Telegram summary
+
+# Every Monday: sends a Telegram summary (published last 7 days, queue, drafts awaiting
+# review, token expiry). Read-only. Skipped silently if the Telegram secrets are unset.
+on:
+  schedule:
+    - cron: "7 8 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  summary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+      - name: Send weekly summary
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: uv run linkedin-bot-weekly-summary

@@ -158,3 +158,52 @@ def test_expired_token_gives_renewal_hint(store):
     assert code == 1
     assert store.list_queue()[0].status == QUEUED
     assert any("linkedin-bot-auth" in line for line in logs)
+
+
+class RecordingNotifier:
+    def __init__(self):
+        self.sent = []
+
+    def send(self, text, buttons=()):
+        self.sent.append((text, list(buttons)))
+
+
+def test_publish_success_notifies_with_linkedin_button(store):
+    notifier = RecordingNotifier()
+    run_once(store, FakeGit(), FakeGitHub(), FakeLinkedIn(), AUTHOR, clock=lambda: NOW,
+             log=lambda _: None, notifier=notifier, run_url="https://run/1")
+    [(text, buttons)] = notifier.sent
+    assert "Publicado" in text
+    assert buttons == [("🔗 Ver en LinkedIn", "https://www.linkedin.com/feed/update/urn:li:share:999/")]
+
+
+def test_refused_post_notifies_problem_with_run_link(store):
+    notifier = RecordingNotifier()
+    run_once(store, FakeGit(), FakeGitHub(merged=False), FakeLinkedIn(), AUTHOR,
+             clock=lambda: NOW, log=lambda _: None, notifier=notifier, run_url="https://run/1")
+    [(text, buttons)] = notifier.sent
+    assert "PR fusionado" in text and buttons == [("🔍 Ver la ejecución", "https://run/1")]
+
+
+def test_expired_token_notifies_renewal(store):
+    notifier = RecordingNotifier()
+    error = PublishError("Create post failed (401): expired", status_code=401)
+    run_once(store, FakeGit(), FakeGitHub(), FakeLinkedIn(error), AUTHOR, clock=lambda: NOW,
+             log=lambda _: None, notifier=notifier)
+    assert "token de LinkedIn" in notifier.sent[0][0]
+
+
+def test_nothing_to_publish_sends_nothing(tmp_path):
+    notifier = RecordingNotifier()
+    run_once(PostStore(tmp_path), FakeGit(), FakeGitHub(), FakeLinkedIn(), AUTHOR,
+             clock=lambda: NOW, log=lambda _: None, notifier=notifier)
+    assert notifier.sent == []
+
+
+def test_actions_run_url():
+    from linkedin_bot.publisher.run import actions_run_url
+
+    env = {"GITHUB_SERVER_URL": "https://github.com", "GITHUB_REPOSITORY": "o/r",
+           "GITHUB_RUN_ID": "5"}
+    assert actions_run_url(env) == "https://github.com/o/r/actions/runs/5"
+    assert actions_run_url({}) is None

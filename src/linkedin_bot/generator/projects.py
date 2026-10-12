@@ -28,6 +28,8 @@ from linkedin_bot.generator.prompt import (
     build_project_update_prompt,
 )
 from linkedin_bot.llm.base import LLMClient, LLMError
+from linkedin_bot.notify import messages
+from linkedin_bot.notify.telegram import Notifier, NullNotifier
 from linkedin_bot.sources.projects import (
     ProjectSnapshot,
     RepoReader,
@@ -170,8 +172,10 @@ def run_projects(
     log: Callable[[str], None] = print,
     max_drafts: int = MAX_PROJECT_DRAFTS_PER_RUN,
     checker: LLMClient | None = None,
+    notifier: Notifier | None = None,
 ) -> int:
     """Return a process exit code: 0 = all good, 1 = at least one repo failed."""
+    notifier = notifier or NullNotifier()
     posts = store.list_queue() + store.list_published()
     pulls = github.list_pull_requests()
     interval = timedelta(days=config.update_interval_days)
@@ -198,6 +202,7 @@ def run_projects(
         post_id = f"{clock():%Y-%m-%d}-{repo_slug(repo)}-{plan.action}"
         details = f"Commit covered: `{snapshot.head_sha}`"
         fact_check = NO_CHECK
+        body = '(borrador escrito en una ejecución anterior; ábrelo en el PR)'
         if not git.remote_branch_exists(branch):
             try:
                 if plan.action == INTRO:
@@ -241,7 +246,16 @@ def run_projects(
             body=pull_request_body(snapshot, plan.action, post_id, details, fact_check),
         )
         log(f"{repo}: {plan.reason} → opened PR #{pull['number']} {pull.get('html_url', '')}")
+        kind = "presentación de proyecto" if plan.action == INTRO else "actualización de proyecto"
+        notifier.send(*messages.draft_opened(
+            kind, repo, body, fact_check, pull.get("html_url", ""), pull["number"]
+        ))
         opened += 1
 
     log(f"Projects done: {opened} PR(s) opened, {failures} failure(s).")
+    if failures:
+        notifier.send(*messages.problem(
+            "Problemas con los repos vigilados",
+            f"{failures} repo(s) fallaron en esta ejecución; se reintentarán en la siguiente.",
+        ))
     return 1 if failures else 0

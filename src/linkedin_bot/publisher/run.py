@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import os
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -26,6 +26,8 @@ from linkedin_bot.publisher.linkedin_client import (
     LinkedInClient,
     PublishError,
 )
+from linkedin_bot.notify import messages
+from linkedin_bot.notify.telegram import Notifier, NullNotifier, build_notifier
 from linkedin_bot.publisher.little_text import to_little_text
 from linkedin_bot.publisher.selection import select_next
 from linkedin_bot.store.posts import PUBLISHED, PUBLISHING, QUEUED, PostStore
@@ -57,11 +59,20 @@ def run_once(
     author_urn: str,
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     log: Callable[[str], None] = print,
+    notifier: Notifier | None = None,
+    run_url: str | None = None,
 ) -> int:
     """Return a process exit code: 0 = published or nothing to do, 1 = needs attention."""
+    notifier = notifier or NullNotifier()
+    run_link = ("🔍 Ver la ejecución", run_url) if run_url else None
+
+    def alert(title: str, detail: str) -> None:
+        notifier.send(*messages.problem(title, detail, run_link))
+
     selection = select_next(store.list_queue(), store.list_published(), clock())
     log(selection.reason)
     if selection.blocked:
+        alert("Publicación bloqueada", selection.reason)
         return 1
     post = selection.post
     if post is None:
@@ -75,6 +86,10 @@ def run_once(
             f"REFUSED: {queue_path} did not reach {BASE_BRANCH} through a merged pull "
             f"request (added in commit {added_in}). Remove it or re-add it via a PR."
         )
+        alert(
+            "Post rechazado: no llegó por un PR fusionado",
+            f"{queue_path} no se publicará. Bórralo o vuelve a añadirlo mediante un PR.",
+        )
         return 1
     log(f"Approved by merged PR #{pull['number']}: {pull.get('html_url', '')}")
 
@@ -87,6 +102,11 @@ def run_once(
     except PublishError as exc:
         if not exc.rejected:
             log(f"UNKNOWN OUTCOME, left in 'publishing': {exc}")
+            alert(
+                "Resultado desconocido al publicar",
+                f"{post.id} quedó en 'publishing'. Revisa en LinkedIn si se publicó antes de "
+                f"tocar nada. Detalle: {exc}",
+            )
             return 1
         store.save_to_queue(replace(claimed, status=QUEUED, claimed_at=None))
         git.commit_and_push([queue_path], f"Release claim on post {post.id} (rejected)")
@@ -97,9 +117,20 @@ def run_once(
                 "`uv run linkedin-bot-auth` and update the LINKEDIN_ACCESS_TOKEN secret "
                 "(see the [linkedin-token] reminder issue)."
             )
+            alert(
+                "El token de LinkedIn caducó o fue revocado",
+                f"{post.id} volvió a la cola. Renueva el token con `uv run linkedin-bot-auth` "
+                "y actualiza el secret LINKEDIN_ACCESS_TOKEN.",
+            )
+        else:
+            alert("LinkedIn rechazó el post", f"{post.id} volvió a la cola. Detalle: {exc}")
         return 1
     except httpx.TransportError as exc:
         log(f"UNKNOWN OUTCOME (network error), left in 'publishing': {exc!r}")
+        alert(
+            "Error de red al publicar",
+            f"{post.id} quedó en 'publishing'. Revisa en LinkedIn si se publicó.",
+        )
         return 1
 
     log(f"Published post URN: {post_urn}")
@@ -107,7 +138,15 @@ def run_once(
     published_path = store.move_to_published(done)
     git.commit_and_push([queue_path, published_path], f"Publish post {post.id} ({post_urn})")
     log(f"Recorded in {published_path}")
+    notifier.send(*messages.published(post.id, post_urn, post.body))
     return 0
+
+
+def actions_run_url(env: Mapping[str, str]) -> str | None:
+    """Link to the current GitHub Actions run (default env vars set by the runner)."""
+    server, repo, run_id = (env.get(k, "") for k in
+                            ("GITHUB_SERVER_URL", "GITHUB_REPOSITORY", "GITHUB_RUN_ID"))
+    return f"{server}/{repo}/actions/runs/{run_id}" if server and repo and run_id else None
 
 
 def _require_env(name: str) -> str:
@@ -131,6 +170,8 @@ def main() -> None:
             github=GitHubClient(http, repository, github_token),
             linkedin=LinkedInClient(http, access_token, api_version),
             author_urn=author_urn,
+            notifier=build_notifier(http, os.environ),
+            run_url=actions_run_url(os.environ),
         )
     sys.exit(exit_code)
 

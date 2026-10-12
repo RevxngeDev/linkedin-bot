@@ -1,0 +1,21 @@
+name: Telegram setup check
+
+# Manual helper (D-032). With only TELEGRAM_BOT_TOKEN set it prints the chat ids that wrote
+# to the bot; with TELEGRAM_CHAT_ID set too it sends a test message. Never prints the token.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+      - name: Check Telegram setup
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: uv run linkedin-bot-telegram-check
