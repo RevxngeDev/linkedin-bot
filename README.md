@@ -70,7 +70,8 @@ src/linkedin_bot/
 ├── store/       post files: parse, validate, render, move queue → published
 ├── publisher/   selection rules, PR approval check, LinkedIn client, publish run
 ├── repo/        git CLI wrapper and GitHub REST client shared by both pipelines
-├── notify/      optional Telegram notifications (outgoing only)
+├── notify/      optional Telegram notifications (outgoing, sent by GitHub Actions)
+├── telegram_bot/ optional listening bot for the PC (commands and approve/reject buttons)
 └── ops/         token-expiry reminder, weekly summary, Telegram setup check
 config/          llm.yml · voice_profile.md · watched_repos.yml · linkedin_token.yml
 content/         ideas/ · queue/ · published/  (the published log is append-only)
@@ -112,6 +113,25 @@ Run the tests:
 uv run pytest -q
 ```
 
+## Telegram remote control (optional)
+
+A small bot that runs on my own PC in the background and listens to my Telegram chat only.
+It never publishes by itself: **approving merges the draft PR**, so the same approval check
+and publisher run in GitHub Actions. If the PC is off, nothing breaks — drafts can still be
+approved on GitHub.
+
+| Command / button | Effect |
+|---|---|
+| ✅ Approve / ❌ Reject (under each draft, with a confirmation step) | merges / closes the draft PR |
+| `/pendientes` | drafts waiting for approval, with buttons |
+| `/programar <PR> <YYYY-MM-DD> <HH:MM>` | sets `publish_at` on the draft (local timezone) |
+| `/nota <text>` | creates a note in `content/ideas/`; a draft PR follows |
+| `/repos`, `/repo_add owner/name`, `/repo_remove owner/name` | manages `config/watched_repos.yml` |
+| `/cola`, `/publicados`, `/token` | queue, latest posts, LinkedIn token expiry |
+
+Run it with `uv run linkedin-bot-telegram` (settings in `.env`, see `.env.example`); it
+needs a fine-grained GitHub token limited to this repository (Contents + Pull requests).
+
 ## Status
 
 - ✅ Publishing from the queue with approval check, idempotency and daily limit.
@@ -120,7 +140,8 @@ uv run pytest -q
 - ✅ Automatic reminder (GitHub issue) before the LinkedIn token expires.
 - ✅ Telegram notifications (optional): new drafts with a button to the PR, published posts
   with a button to LinkedIn, problems and a weekly summary — sent by GitHub Actions, no server.
-- 🔜 Ideas for later: approving and scheduling from Telegram (needs an always-on listener).
+- ✅ Telegram remote control (optional, runs on my PC): approve/reject drafts with buttons
+  (with confirmation), schedule them, send notes, manage watched repos and check the queue.
 
 ## Non-goals
 

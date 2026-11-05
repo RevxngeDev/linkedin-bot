@@ -14,3 +14,6 @@ __pycache__/
 # Local secrets (never commit)
 .env
 .linkedin_token.json
+
+# Local runtime data of the PC Telegram bot (logs)
+data/

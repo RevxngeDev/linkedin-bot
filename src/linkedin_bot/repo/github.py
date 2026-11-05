@@ -4,9 +4,13 @@ Endpoints per GitHub REST docs (API version 2026-03-10), read 2026-10-08:
 - List pull requests associated with a commit (APPROVAL check, D-020)
 - List pull requests filtered by head branch (generator dedupe, D-023)
 - Create a pull request (one PR per draft, D-023)
+- Get/merge/update a pull request; get/create/update file contents (Telegram T3, D-033;
+  read 2026-11-05)
 """
 
 from __future__ import annotations
+
+import base64
 
 import httpx
 
@@ -67,6 +71,77 @@ class GitHubClient:
             if len(batch) < 100:
                 break
         return pulls
+
+    # --- Pull request actions and file writes (Telegram T3 commands, D-033) ---
+
+    def get_pull_request(self, number: int) -> dict:
+        return self._get(f"/repos/{self._repository}/pulls/{number}")
+
+    def merge_pull_request(self, number: int) -> dict:
+        """Merge PR `number` (merge commit). Raises GitHubError if it cannot be merged."""
+        url = f"{GITHUB_API_URL}/repos/{self._repository}/pulls/{number}/merge"
+        response = self._http.put(url, json={"merge_method": "merge"}, headers=self._headers)
+        if response.status_code != 200:
+            raise GitHubError(f"Merge PR #{number} failed ({response.status_code}): {response.text}")
+        return response.json()
+
+    def close_pull_request(self, number: int) -> dict:
+        url = f"{GITHUB_API_URL}/repos/{self._repository}/pulls/{number}"
+        response = self._http.patch(url, json={"state": "closed"}, headers=self._headers)
+        if response.status_code != 200:
+            raise GitHubError(f"Close PR #{number} failed ({response.status_code}): {response.text}")
+        return response.json()
+
+    def read_file(self, path: str, ref: str | None = None) -> tuple[str, str] | None:
+        """(text, blob sha) of a file in this repository, or None if it does not exist."""
+        params = {"ref": ref} if ref else None
+        response = self._http.get(
+            f"{GITHUB_API_URL}/repos/{self._repository}/contents/{path}",
+            params=params,
+            headers=self._headers,
+        )
+        if response.status_code == 404:
+            return None
+        if response.status_code != 200:
+            raise GitHubError(f"GitHub GET {path} failed ({response.status_code}): {response.text}")
+        data = response.json()
+        if not isinstance(data, dict) or data.get("type") != "file":
+            raise GitHubError(f"{path} is not a file")
+        return base64.b64decode(data["content"]).decode("utf-8"), data["sha"]
+
+    def list_dir(self, path: str, ref: str | None = None) -> list[str]:
+        """File names in a directory of this repository ([] if it does not exist)."""
+        params = {"ref": ref} if ref else None
+        response = self._http.get(
+            f"{GITHUB_API_URL}/repos/{self._repository}/contents/{path}",
+            params=params,
+            headers=self._headers,
+        )
+        if response.status_code == 404:
+            return []
+        if response.status_code != 200:
+            raise GitHubError(f"GitHub GET {path} failed ({response.status_code}): {response.text}")
+        return sorted(item["name"] for item in response.json() if item.get("type") == "file")
+
+    def write_file(
+        self, path: str, text: str, message: str, sha: str | None = None, branch: str | None = None
+    ) -> None:
+        """Create (sha=None) or update a file with one commit, by the token's owner."""
+        payload: dict[str, str] = {
+            "message": message,
+            "content": base64.b64encode(text.encode("utf-8")).decode("ascii"),
+        }
+        if sha:
+            payload["sha"] = sha
+        if branch:
+            payload["branch"] = branch
+        response = self._http.put(
+            f"{GITHUB_API_URL}/repos/{self._repository}/contents/{path}",
+            json=payload,
+            headers=self._headers,
+        )
+        if response.status_code not in (200, 201):
+            raise GitHubError(f"Write {path} failed ({response.status_code}): {response.text}")
 
     # --- Issues (token-expiry reminder, D-031) ---
 

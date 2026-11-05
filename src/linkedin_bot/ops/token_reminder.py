@@ -83,14 +83,23 @@ def _parse_datetime(value: object) -> datetime:
 
 def load_token_config(path: Path = DEFAULT_CONFIG_PATH) -> TokenConfig:
     try:
-        raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    except (OSError, yaml.YAMLError) as exc:
+        text = path.read_text(encoding="utf-8")
+    except OSError as exc:
         raise TokenConfigError(f"Cannot read {path}: {exc}") from exc
+    return load_token_config_text(text, source=str(path))
+
+
+def load_token_config_text(text: str, source: str = "linkedin_token.yml") -> TokenConfig:
+    """Parse the token config from its YAML text (e.g. fetched from GitHub by the bot)."""
+    try:
+        raw = yaml.safe_load(text) or {}
+    except yaml.YAMLError as exc:
+        raise TokenConfigError(f"Cannot read {source}: {exc}") from exc
     if not isinstance(raw, dict) or not raw.get("expires_at"):
-        raise TokenConfigError(f"{path}: 'expires_at' is required")
+        raise TokenConfigError(f"{source}: 'expires_at' is required")
     days = raw.get("remind_days_before", DEFAULT_REMIND_DAYS_BEFORE)
     if not isinstance(days, int) or isinstance(days, bool) or days < 1:
-        raise TokenConfigError(f"{path}: 'remind_days_before' must be a positive integer")
+        raise TokenConfigError(f"{source}: 'remind_days_before' must be a positive integer")
     return TokenConfig(_parse_datetime(raw["expires_at"]), days)
 
 

@@ -207,4 +207,5 @@ def test_new_draft_is_notified_with_pr_button(workspace):
                   clock=lambda: NOW, log=lambda _: None, notifier=recorder)
     [(text, buttons)] = recorder.sent
     assert "Nuevo borrador" in text and "Borrador sobre: Nota real." in text
-    assert buttons == [("📝 Revisar PR", "u")]
+    assert buttons[0] == ("📝 Revisar PR", "u")
+    assert [target for _, target in buttons[1:]] == ["cb:approve:10", "cb:reject:10"]

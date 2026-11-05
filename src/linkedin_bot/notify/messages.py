@@ -30,9 +30,18 @@ def draft_opened(
         f"Fuente: <code>{esc(source)}</code>\n\n"
         f"<blockquote expandable>{esc(_cut(body, MAX_BODY_CHARS))}</blockquote>\n\n"
         f"🔎 <b>Verificación automática</b>\n{esc(_cut(fact_check, MAX_CHECK_CHARS))}\n\n"
-        f"Revisa, edita si hace falta y haz merge del PR #{pr_number} para publicarlo."
+        f"Revisa, edita si hace falta y apruébalo (merge del PR #{pr_number}) para publicarlo."
     )
-    return text, [("📝 Revisar PR", pr_url)]
+    return text, draft_buttons(pr_url, pr_number)
+
+
+def draft_buttons(pr_url: str, pr_number: int) -> list[Button]:
+    """Link to the PR plus T3 callback buttons (handled by the bot running on the PC)."""
+    return [
+        ("📝 Revisar PR", pr_url),
+        ("✅ Aprobar", f"cb:approve:{pr_number}"),
+        ("❌ Rechazar", f"cb:reject:{pr_number}"),
+    ]
 
 
 def published(post_id: str, post_urn: str, body: str) -> tuple[str, list[Button]]:

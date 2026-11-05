@@ -72,7 +72,8 @@ src/linkedin_bot/
 ├── store/       archivos de post: leer, validar, escribir, mover cola → publicados
 ├── publisher/   reglas de selección, verificación de PR, cliente de LinkedIn, publicación
 ├── repo/        envoltorio de git y cliente REST de GitHub compartidos por ambos pipelines
-├── notify/      avisos opcionales por Telegram (solo salida)
+├── notify/      avisos opcionales por Telegram (salida, los envía GitHub Actions)
+├── telegram_bot/ bot opcional que escucha en el PC (comandos y botones aprobar/rechazar)
 └── ops/         aviso de caducidad del token, resumen semanal, comprobación de Telegram
 config/          llm.yml · voice_profile.md · watched_repos.yml · linkedin_token.yml
 content/         ideas/ · queue/ · published/  (el registro de publicados solo crece)
@@ -114,6 +115,25 @@ Ejecutar los tests:
 uv run pytest -q
 ```
 
+## Mando a distancia por Telegram (opcional)
+
+Un bot pequeño que corre en segundo plano en mi PC y solo escucha mi chat de Telegram.
+Nunca publica por su cuenta: **aprobar = fusionar el PR del borrador**, así que la misma
+verificación de aprobación y el mismo publicador corren en GitHub Actions. Si el PC está
+apagado no se rompe nada: los borradores se pueden aprobar en GitHub.
+
+| Comando / botón | Efecto |
+|---|---|
+| ✅ Aprobar / ❌ Rechazar (bajo cada borrador, con paso de confirmación) | fusiona / cierra el PR del borrador |
+| `/pendientes` | borradores esperando aprobación, con botones |
+| `/programar <PR> <AAAA-MM-DD> <HH:MM>` | pone `publish_at` en el borrador (hora local) |
+| `/nota <texto>` | crea una nota en `content/ideas/`; llega un PR con el borrador |
+| `/repos`, `/repo_add usuario/repo`, `/repo_remove usuario/repo` | gestiona `config/watched_repos.yml` |
+| `/cola`, `/publicados`, `/token` | cola, últimos posts, caducidad del token de LinkedIn |
+
+Se ejecuta con `uv run linkedin-bot-telegram` (configuración en `.env`, ver `.env.example`);
+necesita un token de GitHub *fine-grained* limitado a este repositorio (Contents + Pull requests).
+
 ## Estado
 
 - ✅ Publicación desde la cola con verificación de aprobación, sin duplicados y con límite diario.
@@ -122,7 +142,8 @@ uv run pytest -q
 - ✅ Aviso automático (Issue de GitHub) antes de que caduque el token de LinkedIn.
 - ✅ Avisos por Telegram (opcionales): borradores nuevos con botón al PR, posts publicados con
   botón a LinkedIn, problemas y resumen semanal; los envía GitHub Actions, sin servidor.
-- 🔜 Ideas para más adelante: aprobar y programar desde Telegram (necesita un proceso siempre a la escucha).
+- ✅ Mando a distancia por Telegram (opcional, corre en mi PC): aprobar o rechazar borradores con
+  botones (con confirmación), programarlos, enviar notas, gestionar repos vigilados y ver la cola.
 
 ## Lo que no hace
 

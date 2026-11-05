@@ -101,7 +101,11 @@ def test_draft_message_escapes_content_and_links_the_pr():
     )
     assert "&lt;script&gt; &amp; #Python" in text and "<script>" not in text
     assert "PR #9" in text
-    assert buttons == [("📝 Revisar PR", "https://github.com/o/r/pull/9")]
+    assert buttons == [
+        ("📝 Revisar PR", "https://github.com/o/r/pull/9"),
+        ("✅ Aprobar", "cb:approve:9"),
+        ("❌ Rechazar", "cb:reject:9"),
+    ]
 
 
 def test_long_draft_still_fits_in_one_message():

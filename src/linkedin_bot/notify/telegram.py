@@ -22,7 +22,23 @@ MAX_MESSAGE_CHARS = 4096
 TOKEN_ENV = "TELEGRAM_BOT_TOKEN"
 CHAT_ID_ENV = "TELEGRAM_CHAT_ID"
 
-Button = tuple[str, str]  # (label, url)
+Button = tuple[str, str]  # (label, url) — or (label, "cb:<data>") for a callback button
+CALLBACK_PREFIX = "cb:"
+
+
+def inline_keyboard(buttons: Sequence[Button]) -> list[list[dict[str, str]]]:
+    """URL buttons get a row each; consecutive callback buttons share one row (T3)."""
+    rows: list[list[dict[str, str]]] = []
+    for label, target in buttons:
+        if target.startswith(CALLBACK_PREFIX):
+            button = {"text": label, "callback_data": target[len(CALLBACK_PREFIX):]}
+            if rows and "callback_data" in rows[-1][-1]:
+                rows[-1].append(button)
+                continue
+            rows.append([button])
+        else:
+            rows.append([{"text": label, "url": target}])
+    return rows
 
 
 class Notifier(Protocol):
@@ -59,9 +75,7 @@ class TelegramNotifier:
             "link_preview_options": {"is_disabled": True},
         }
         if buttons:
-            payload["reply_markup"] = {
-                "inline_keyboard": [[{"text": label, "url": url}] for label, url in buttons]
-            }
+            payload["reply_markup"] = {"inline_keyboard": inline_keyboard(buttons)}
         try:
             response = self._http.post(f"{API_URL}/bot{self._token}/sendMessage", json=payload)
             data = response.json()
